@@ -75,6 +75,7 @@ function bindActions() {
   $$("[data-action='load-returns']").forEach((button) => button.addEventListener("click", loadReturns));
   $$("[data-action='load-inventory']").forEach((button) => button.addEventListener("click", loadInventory));
   $$("[data-save-editor]").forEach((button) => button.addEventListener("click", () => saveEditor(button.dataset.saveEditor)));
+  $$("[data-export]").forEach((button) => button.addEventListener("click", () => exportCsv(button.dataset.export)));
 }
 
 function bindLogin() {
@@ -279,6 +280,7 @@ function renderAll() {
   renderInventory();
   renderCreatedUsers();
   renderDashboardLists();
+  renderOperations();
   renderEditLog();
 }
 
@@ -429,6 +431,44 @@ function renderDashboardLists() {
   $("#active-customers").innerHTML = filtered(store.customers, "customers").slice(0, 8).map((item) => miniCard(item.name, item.phone || item.email || "Active", `${item.orders || 0} orders`)).join("") || emptyState("No active customers yet.");
   $("#active-pickers").innerHTML = activePickers().slice(0, 8).map((item) => miniCard(item.picker || item.customer || item.number, item.warehouse || item.status, item.number)).join("") || emptyState("No active pickers yet.");
   renderDateWise();
+}
+
+function renderOperations() {
+  const lowStock = filtered(store.inventory, "inventory").filter((item) => Number(item.stock || 0) <= 1);
+  const pendingOrders = filtered(store.orders, "orders").filter((item) => tabMatches(item.status, "pending"));
+  const returns = filtered(store.returns, "returns");
+  const alerts = [
+    lowStock.length ? ["Low stock", `${lowStock.length} SKU at 1 qty or less`, "Inventory"] : null,
+    pendingOrders.length ? ["Pending orders", `${pendingOrders.length} orders need picking`, "Orders"] : null,
+    returns.length ? ["Returns", `${returns.length} return rows need action`, "Returns"] : null,
+    Object.keys(store.errors).length ? ["Connection", `${Object.keys(store.errors).length} modules partial`, "Check"] : null,
+  ].filter(Boolean);
+  $("#ops-alerts").innerHTML = alerts.length ? alerts.map(([title, body, side]) => miniCard(title, body, side)).join("") : miniCard("All clear", "No operational exceptions in current filter", "OK");
+
+  const pipeline = [
+    ["Pending", countStatus(store.orders, ["pending", "new", "placed", "processing"])],
+    ["Shipped", countStatus(store.orders, ["shipped", "packed", "dispatch", "dispatched"])],
+    ["Delivered", countStatus(store.orders, ["delivered", "complete", "completed"])],
+    ["Cancel", countStatus(store.orders, ["cancel", "cancelled", "canceled"])],
+    ["Return", store.returns.length],
+  ];
+  const max = Math.max(...pipeline.map((item) => item[1]), 1);
+  $("#pipeline-health").innerHTML = pipeline.map(([label, count]) => `
+    <article class="pipeline-step">
+      <div><strong>${escapeHtml(label)}</strong><span>${count} rows</span></div>
+      <div class="bar"><i style="width:${Math.max(4, (count / max) * 100)}%"></i></div>
+    </article>
+  `).join("");
+
+  const health = [
+    ["Products", store.products.length ? "Online" : "Waiting", `${store.products.length} rows`],
+    ["Orders", store.orders.length ? "Online" : "Protected", `${store.orders.length} rows`],
+    ["Pickers", store.pickerOrders.length ? "Online" : "Protected", `${store.pickerOrders.length} rows`],
+    ["Users", store.createdUsers.length ? "Online" : "Ready", `${store.createdUsers.length} users`],
+    ["Inventory", store.inventory.length ? "Online" : "Catalog fallback", `${store.inventory.length} rows`],
+  ];
+  const node = $("#system-health");
+  if (node) node.innerHTML = health.map(([title, body, side]) => miniCard(title, body, side)).join("");
 }
 
 function renderDateWise() {
@@ -718,6 +758,41 @@ function setSyncState(state) {
 function renderEditLog() {
   const keys = Object.keys(localStorage).filter((key) => key.startsWith("evspeareDraft:"));
   $("#edit-log").innerHTML = keys.length ? keys.slice(-8).reverse().map((key) => miniCard(key.replace("evspeareDraft:", ""), "Local draft saved", "")).join("") : emptyState("No edits yet.");
+}
+
+function exportCsv(key) {
+  const rows = {
+    orders: store.orders,
+    customers: store.customers,
+    pickerOrders: store.pickerOrders,
+    returns: store.returns,
+    products: store.products,
+    inventory: store.inventory,
+  }[key] || [];
+  if (!rows.length) {
+    toast("Export ke liye rows available nahi hain.");
+    return;
+  }
+  const columns = Array.from(rows.reduce((set, row) => {
+    Object.keys(row).forEach((item) => set.add(item));
+    return set;
+  }, new Set()));
+  const csv = [
+    columns.join(","),
+    ...rows.map((row) => columns.map((column) => csvCell(row[column])).join(",")),
+  ].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `evspeare-${key}-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  toast("CSV export ready.");
+}
+
+function csvCell(value) {
+  const raw = Array.isArray(value) ? value.join("|") : String(value ?? "");
+  return `"${raw.replaceAll('"', '""')}"`;
 }
 
 function normalizeProduct(item, index = 0) {

@@ -44,6 +44,7 @@
           <button type="button" data-page="catalog">Catalog</button>
           <button type="button" data-page="tracking">Order Tracking</button>
           <button type="button" data-page="content">Website/App Edit</button>
+          <button type="button" data-page="automation">Automation</button>
         </nav>
 
         <div class="sync-card">
@@ -132,6 +133,24 @@
               </div>
               <div class="chart-list" id="date-wise"></div>
             </section>
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>Exception desk</span>
+                  <h2>Operational alerts</h2>
+                </div>
+              </div>
+              <div class="mini-list" id="ops-alerts"></div>
+            </section>
+            <section class="panel span-2">
+              <div class="panel-head">
+                <div>
+                  <span>Fulfillment</span>
+                  <h2>Pipeline health</h2>
+                </div>
+              </div>
+              <div class="pipeline" id="pipeline-health"></div>
+            </section>
           </div>
         </section>
 
@@ -142,7 +161,10 @@
                 <span>All statuses</span>
                 <h2>Orders, pending, shipped, delivered, cancel</h2>
               </div>
-              <button type="button" data-action="load-orders">Refresh orders</button>
+              <div class="button-row">
+                <button type="button" data-export="orders">Export CSV</button>
+                <button type="button" data-action="load-orders">Refresh orders</button>
+              </div>
             </div>
             <div class="tabs" id="order-tabs"></div>
             <div class="data-table" id="orders-table"></div>
@@ -172,7 +194,10 @@
                 <span>Customer CRM</span>
                 <h2>Active customer rows</h2>
               </div>
-              <button type="button" data-action="load-customers">Refresh customers</button>
+              <div class="button-row">
+                <button type="button" data-export="customers">Export CSV</button>
+                <button type="button" data-action="load-customers">Refresh customers</button>
+              </div>
             </div>
             <div class="data-table" id="customers-table"></div>
           </div>
@@ -185,7 +210,10 @@
                 <span>Picker operations</span>
                 <h2>Picker queue and staff</h2>
               </div>
-              <button type="button" data-action="load-picker">Refresh picker</button>
+              <div class="button-row">
+                <button type="button" data-export="pickerOrders">Export CSV</button>
+                <button type="button" data-action="load-picker">Refresh picker</button>
+              </div>
             </div>
             <div class="data-table" id="pickers-table"></div>
           </div>
@@ -198,7 +226,10 @@
                 <span>Return desk</span>
                 <h2>Returns and cancellations</h2>
               </div>
-              <button type="button" data-action="load-returns">Refresh returns</button>
+              <div class="button-row">
+                <button type="button" data-export="returns">Export CSV</button>
+                <button type="button" data-action="load-returns">Refresh returns</button>
+              </div>
             </div>
             <div class="data-table" id="returns-table"></div>
           </div>
@@ -211,7 +242,10 @@
                 <span>Website catalog</span>
                 <h2>Products and stock</h2>
               </div>
-              <button type="button" data-action="load-products">Refresh catalog</button>
+              <div class="button-row">
+                <button type="button" data-export="products">Export CSV</button>
+                <button type="button" data-action="load-products">Refresh catalog</button>
+              </div>
             </div>
             <div class="data-table" id="products-table"></div>
           </div>
@@ -224,7 +258,10 @@
                 <span>Warehouse stock</span>
                 <h2>Inventory warehouse-wise</h2>
               </div>
-              <button type="button" data-action="load-inventory">Refresh inventory</button>
+              <div class="button-row">
+                <button type="button" data-export="inventory">Export CSV</button>
+                <button type="button" data-action="load-inventory">Refresh inventory</button>
+              </div>
             </div>
             <div class="data-table" id="inventory-table"></div>
           </div>
@@ -340,6 +377,15 @@
                     <label>Payment policy <select name="paymentPolicy"><option>Enabled</option><option>Disabled</option></select></label>
                   </div>
                 </details>
+                <details>
+                  <summary>Merchandising and campaign</summary>
+                  <div class="option-row">
+                    <label>Coupon code <input name="couponCode" placeholder="EVSAVE10" /></label>
+                    <label>Coupon status <select name="couponStatus"><option>Active</option><option>Paused</option></select></label>
+                    <label>Low stock badge <select name="lowStockBadge"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Recommended sort <select name="recommendedSort"><option>Stock first</option><option>Price low-high</option><option>Newest</option><option>Manual</option></select></label>
+                  </div>
+                </details>
               </form>
             </section>
 
@@ -368,6 +414,15 @@
                     <label>Campaign title <input name="pushTitle" value="New EV parts arrived" /></label>
                     <label>Campaign message <input name="pushMessage" value="Fresh catalog and fast dispatch live now." /></label>
                     <label>Audience <select name="pushAudience"><option>All customers</option><option>Active customers</option><option>Pending orders</option><option>Pincode wise</option></select></label>
+                  </div>
+                </details>
+                <details>
+                  <summary>Customer experience</summary>
+                  <div class="option-row">
+                    <label>Voice search <select name="voiceSearch"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Wishlist reminders <select name="wishlistReminder"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Abandoned cart push <select name="cartRecovery"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Order tracking card <select name="trackingCard"><option>Enabled</option><option>Disabled</option></select></label>
                   </div>
                 </details>
                 <details>
@@ -409,6 +464,15 @@
                     <label>Picker notification <select name="pickerPush"><option>Enabled</option><option>Disabled</option></select></label>
                   </div>
                 </details>
+                <details>
+                  <summary>Picker productivity</summary>
+                  <div class="option-row">
+                    <label>Batch picking <select name="batchPicking"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Route sequence <select name="routeSequence"><option>Bin optimized</option><option>Order priority</option></select></label>
+                    <label>Mismatch lock <select name="mismatchLock"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Offline queue <select name="offlineQueue"><option>Enabled</option><option>Disabled</option></select></label>
+                  </div>
+                </details>
               </form>
             </section>
 
@@ -420,6 +484,49 @@
                 </div>
               </div>
               <div class="mini-list" id="edit-log"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="page" data-page-panel="automation">
+          <div class="editor-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>Business automation</span>
+                  <h2>Rules and triggers</h2>
+                </div>
+                <button type="button" data-save-editor="automation">Save</button>
+              </div>
+              <form class="edit-form" data-editor="automation">
+                <details open>
+                  <summary>Order automation</summary>
+                  <div class="option-row">
+                    <label>Auto assign picker <select name="autoAssignPicker"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Auto warehouse select <select name="autoWarehouse"><option>Pincode wise</option><option>Stock wise</option><option>Manual</option></select></label>
+                    <label>Auto cancel timeout hours <input name="cancelTimeout" type="number" value="24" /></label>
+                    <label>Escalation status <select name="escalationStatus"><option>Enabled</option><option>Disabled</option></select></label>
+                  </div>
+                </details>
+                <details>
+                  <summary>Inventory automation</summary>
+                  <div class="option-row">
+                    <label>Low stock alert qty <input name="lowStockQty" type="number" value="2" /></label>
+                    <label>Reorder alert <select name="reorderAlert"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Dead stock days <input name="deadStockDays" type="number" value="30" /></label>
+                    <label>Inventory audit <select name="inventoryAudit"><option>Weekly</option><option>Daily</option><option>Monthly</option></select></label>
+                  </div>
+                </details>
+              </form>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>System health</span>
+                  <h2>Connected modules</h2>
+                </div>
+              </div>
+              <div class="mini-list" id="system-health"></div>
             </section>
           </div>
         </section>

@@ -42,6 +42,13 @@ button,
   cursor: pointer;
   font-weight: 800;
   text-decoration: none;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+button:hover,
+.top-actions a:hover {
+  border-color: #9fb2c8;
+  transform: translateY(-1px);
 }
 
 .app-layout {
@@ -169,6 +176,13 @@ button,
   border: 0;
   background: #21c7a8;
   color: #06201d;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .main {
@@ -324,11 +338,19 @@ select {
   min-width: 0;
 }
 
+.panel:hover {
+  border-color: #c6d3e1;
+}
+
 .metric-card {
   padding: 14px;
   min-height: 118px;
   display: grid;
   align-content: space-between;
+}
+
+.metric-card:hover {
+  transform: translateY(-1px);
 }
 
 .metric-card span,
@@ -392,6 +414,13 @@ select {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-2);
+}
+
+.data-row:hover,
+.mini-card:hover,
+.chart-card:hover {
+  border-color: #c6d3e1;
+  background: #ffffff;
 }
 
 .row-cell {
@@ -466,6 +495,31 @@ select {
   gap: 8px;
 }
 
+.pipeline {
+  display: grid;
+  gap: 10px;
+}
+
+.pipeline-step {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.pipeline-step div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pipeline-step span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .bar {
   height: 8px;
   overflow: hidden;
@@ -505,6 +559,28 @@ summary {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   padding: 0 12px 12px;
+}
+
+.permission-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+
+.permission-grid label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}
+
+.permission-grid input {
+  width: auto;
+  min-height: auto;
 }
 
 .tracking-search {
@@ -605,6 +681,7 @@ summary {
   .live-grid,
   .settings-grid,
   .option-row,
+  .permission-grid,
   .tracking-card {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -634,6 +711,7 @@ summary {
   .settings-grid,
   .settings-grid.compact,
   .option-row,
+  .permission-grid,
   .tracking-search,
   .tracking-card {
     grid-template-columns: 1fr;
