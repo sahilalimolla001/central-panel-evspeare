@@ -282,6 +282,7 @@ function renderAll() {
   renderShiprocket();
   renderDashboardLists();
   renderOperations();
+  renderOpsConfig();
   renderEditLog();
 }
 
@@ -796,6 +797,43 @@ function setSyncState(state) {
 function renderEditLog() {
   const keys = Object.keys(localStorage).filter((key) => key.startsWith("evspeareDraft:"));
   $("#edit-log").innerHTML = keys.length ? keys.slice(-8).reverse().map((key) => miniCard(key.replace("evspeareDraft:", ""), "Local draft saved", "")).join("") : emptyState("No edits yet.");
+}
+
+function renderOpsConfig() {
+  const config = loadLocalDraft("editor:ops-config");
+  const fallback = {
+    shiftRequired: "Enabled",
+    pickMethod: "Bin first",
+    routeOptimization: "Bin sequence",
+    toteAssignment: "Required",
+    bagSealCheck: "Required",
+    awbMandatory: "Enabled",
+    cycleCount: "Daily",
+    incidentReporting: "Enabled",
+  };
+  const merged = { ...fallback, ...config };
+  const preview = [
+    ["Shift gate", merged.shiftRequired, "Picker login ke baad shift control"],
+    ["Pick flow", merged.pickMethod, "Scanner workflow"],
+    ["Route", merged.routeOptimization, "Queue sorting"],
+    ["Tote", merged.toteAssignment, "Crate assignment"],
+    ["Dispatch", `Seal ${merged.bagSealCheck}`, "Rider handoff checklist"],
+    ["Shiprocket", merged.shiprocketSync || "Enabled", "AWB/courier sync"],
+    ["Cycle count", merged.cycleCount, "Warehouse audit"],
+    ["Incidents", merged.incidentReporting, "Floor issue reporting"],
+  ];
+  const readiness = [
+    ["Picker app", store.pickerOrders.length ? "Live" : "Needs endpoint", `${store.pickerOrders.length} picker rows`],
+    ["Warehouse filter", $("#warehouse-filter").options.length > 1 ? "Ready" : "Needs warehouse data", "Warehouse-wise view"],
+    ["Inventory", store.inventory.length ? "Connected" : "Needs endpoint", `${store.inventory.length} rows`],
+    ["Returns", store.returns.length ? "Connected" : "Needs endpoint", `${store.returns.length} rows`],
+    ["Shiprocket", shiprocketRows().length ? "Connected" : "Needs courier data", `${shiprocketRows().length} rows`],
+    ["Users", store.createdUsers.length ? "Ready" : "Create users", `${store.createdUsers.length} access users`],
+  ];
+  const previewNode = $("#ops-config-preview");
+  if (previewNode) previewNode.innerHTML = preview.map((item) => miniCard(item[0], item[1], item[2])).join("");
+  const readinessNode = $("#warehouse-readiness");
+  if (readinessNode) readinessNode.innerHTML = readiness.map((item) => miniCard(item[0], item[1], item[2])).join("");
 }
 
 function exportCsv(key) {

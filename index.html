@@ -45,6 +45,7 @@
           <button type="button" data-page="catalog">Catalog</button>
           <button type="button" data-page="tracking">Order Tracking</button>
           <button type="button" data-page="content">Website/App Edit</button>
+          <button type="button" data-page="ops-config">Warehouse Ops Config</button>
           <button type="button" data-page="automation">Automation</button>
         </nav>
 
@@ -511,6 +512,84 @@
                 </div>
               </div>
               <div class="mini-list" id="edit-log"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="page" data-page-panel="ops-config">
+          <div class="editor-grid">
+            <section class="panel span-2">
+              <div class="panel-head">
+                <div>
+                  <span>Picker + warehouse workflow</span>
+                  <h2>Quick-commerce configuration</h2>
+                </div>
+                <button type="button" data-save-editor="ops-config">Save</button>
+              </div>
+              <form class="edit-form" data-editor="ops-config">
+                <details open>
+                  <summary>Picker app options</summary>
+                  <div class="option-row">
+                    <label>Shift start required <select name="shiftRequired"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Break mode <select name="breakMode"><option>Allowed</option><option>Blocked</option></select></label>
+                    <label>Scan beep <select name="scanBeep"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Vibration <select name="vibration"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Fast pack <select name="fastPack"><option>Disabled</option><option>Enabled</option></select></label>
+                    <label>Offline queue <select name="offlineQueue"><option>Enabled</option><option>Disabled</option></select></label>
+                  </div>
+                </details>
+                <details>
+                  <summary>Picking rules</summary>
+                  <div class="option-row">
+                    <label>Pick method <select name="pickMethod"><option>Bin first</option><option>SKU first</option><option>Wave pick</option><option>Batch pick</option></select></label>
+                    <label>Route optimization <select name="routeOptimization"><option>Bin sequence</option><option>SLA priority</option><option>Zone wise</option></select></label>
+                    <label>Max orders per wave <input name="maxWaveOrders" type="number" value="5" /></label>
+                    <label>Tote assignment <select name="toteAssignment"><option>Required</option><option>Optional</option></select></label>
+                    <label>Shortage action <select name="shortageAction"><option>Exception queue</option><option>Substitution request</option><option>Manager approval</option></select></label>
+                    <label>SLA alert minutes <input name="slaAlertMinutes" type="number" value="10" /></label>
+                  </div>
+                </details>
+                <details>
+                  <summary>Dispatch / handoff</summary>
+                  <div class="option-row">
+                    <label>Bag seal check <select name="bagSealCheck"><option>Required</option><option>Optional</option></select></label>
+                    <label>Label check <select name="labelCheck"><option>Required</option><option>Optional</option></select></label>
+                    <label>Payment/OTP check <select name="paymentOtpCheck"><option>Required</option><option>Optional</option></select></label>
+                    <label>Rider delay alert minutes <input name="riderDelayMinutes" type="number" value="8" /></label>
+                    <label>AWB mandatory <select name="awbMandatory"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Shiprocket sync <select name="shiprocketSync"><option>Enabled</option><option>Disabled</option></select></label>
+                  </div>
+                </details>
+                <details>
+                  <summary>Warehouse automation</summary>
+                  <div class="option-row">
+                    <label>Low stock watch <input name="lowStockWatchQty" type="number" value="3" /></label>
+                    <label>Cycle count <select name="cycleCount"><option>Daily</option><option>Weekly</option><option>Monthly</option></select></label>
+                    <label>Return virtual bin <select name="returnVirtualBin"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Damaged item flow <select name="damageFlow"><option>PV required</option><option>Manager approval</option><option>Auto quarantine</option></select></label>
+                    <label>Incident reporting <select name="incidentReporting"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Picker productivity <select name="pickerProductivity"><option>Visible</option><option>Hidden</option></select></label>
+                  </div>
+                </details>
+              </form>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>Config preview</span>
+                  <h2>Picker app feature map</h2>
+                </div>
+              </div>
+              <div class="mini-list" id="ops-config-preview"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>Warehouse checklist</span>
+                  <h2>End-to-end readiness</h2>
+                </div>
+              </div>
+              <div class="mini-list" id="warehouse-readiness"></div>
             </section>
           </div>
         </section>
