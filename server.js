@@ -6,7 +6,10 @@ const crypto = require("crypto");
 const port = Number(process.env.PORT || process.argv[2] || 8000);
 const host = process.env.HOST || "0.0.0.0";
 const root = __dirname;
+const dataDir = path.join(root, "data");
+const dbPath = path.join(dataDir, "db.json");
 const sessions = new Map();
+const staffSessions = new Map();
 
 const config = {
   websiteUrl: process.env.WEBSITE_URL || "https://www.evspeare.shop",
@@ -40,6 +43,14 @@ const types = {
 http.createServer(async (request, response) => {
   try {
     const requestUrl = new URL(request.url, `http://${request.headers.host}`);
+    if (requestUrl.pathname === "/api/login" && request.method === "POST") {
+      await handleStaffLogin(request, response);
+      return;
+    }
+    if (requestUrl.pathname === "/api/me") {
+      await handleStaffMe(request, response);
+      return;
+    }
     if (requestUrl.pathname.startsWith("/api/admin/")) {
       await handleAdminApi(request, response, requestUrl);
       return;
@@ -75,12 +86,88 @@ async function handleAdminApi(request, response, requestUrl) {
     return;
   }
 
+  if (requestUrl.pathname === "/api/admin/users") {
+    await handleUsersApi(request, response);
+    return;
+  }
+
   if (requestUrl.pathname === "/api/admin/proxy") {
     await proxyBackend(request, response, requestUrl);
     return;
   }
 
   sendJson(response, 404, { ok: false, message: "Admin API route not found" });
+}
+
+async function handleUsersApi(request, response) {
+  if (request.method === "GET") {
+    const db = readDb();
+    sendJson(response, 200, { ok: true, users: db.users.map(publicUser) });
+    return;
+  }
+
+  if (request.method === "POST") {
+    const body = await readJson(request);
+    const user = buildUser(body);
+    if (!user.userId || !body.password || !user.warehouseId) {
+      sendJson(response, 400, { ok: false, message: "userId, password and warehouseId are required" });
+      return;
+    }
+    const db = readDb();
+    const existingIndex = db.users.findIndex((item) => item.userId.toLowerCase() === user.userId.toLowerCase());
+    if (existingIndex >= 0) db.users[existingIndex] = { ...db.users[existingIndex], ...user, updatedAt: new Date().toISOString() };
+    else db.users.unshift(user);
+    writeDb(db);
+    sendJson(response, 200, { ok: true, user: publicUser(user) });
+    return;
+  }
+
+  if (request.method === "PUT" || request.method === "PATCH") {
+    const body = await readJson(request);
+    const db = readDb();
+    const index = db.users.findIndex((item) => String(item.id) === String(body.id) || item.userId.toLowerCase() === String(body.userId || "").toLowerCase());
+    if (index < 0) {
+      sendJson(response, 404, { ok: false, message: "User not found" });
+      return;
+    }
+    const updates = { ...body };
+    delete updates.password;
+    if (body.password) updates.passwordHash = hashPassword(body.password, db.users[index].salt);
+    db.users[index] = { ...db.users[index], ...updates, updatedAt: new Date().toISOString() };
+    writeDb(db);
+    sendJson(response, 200, { ok: true, user: publicUser(db.users[index]) });
+    return;
+  }
+
+  sendJson(response, 405, { ok: false, message: "Method not allowed" });
+}
+
+async function handleStaffLogin(request, response) {
+  const body = await readJson(request);
+  const login = String(body.email || body.userId || "").trim().toLowerCase();
+  const password = String(body.password || "");
+  const db = readDb();
+  const user = db.users.find((item) => item.userId.toLowerCase() === login && item.status !== "blocked");
+  if (!user || hashPassword(password, user.salt) !== user.passwordHash) {
+    sendJson(response, 401, { ok: false, message: "Invalid user ID or password" });
+    return;
+  }
+  const token = crypto.randomBytes(32).toString("hex");
+  staffSessions.set(token, { userId: user.userId, createdAt: Date.now() });
+  sendJson(response, 200, { ok: true, token, user: publicUser(user) });
+}
+
+async function handleStaffMe(request, response) {
+  const auth = request.headers.authorization || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  const session = staffSessions.get(token);
+  if (!session) {
+    sendJson(response, 401, { ok: false, message: "Login required" });
+    return;
+  }
+  const db = readDb();
+  const user = db.users.find((item) => item.userId === session.userId);
+  sendJson(response, 200, { ok: true, user: user ? publicUser(user) : null });
 }
 
 async function proxyBackend(request, response, requestUrl) {
@@ -131,6 +218,53 @@ function isAuthorized(request) {
   const auth = request.headers.authorization || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   return Boolean(token && sessions.has(token));
+}
+
+function buildUser(body) {
+  const salt = crypto.randomBytes(16).toString("hex");
+  return {
+    id: crypto.randomUUID(),
+    userId: String(body.userId || body.email || "").trim(),
+    name: String(body.name || "").trim(),
+    phone: String(body.phone || "").trim(),
+    role: String(body.role || "picker").trim(),
+    warehouseId: String(body.warehouseId || body.warehouse_id || "").trim(),
+    status: String(body.status || "active").trim(),
+    permissions: Array.isArray(body.permissions) ? body.permissions : [],
+    salt,
+    passwordHash: hashPassword(String(body.password || ""), salt),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function publicUser(user) {
+  const { passwordHash, salt, ...safeUser } = user;
+  return safeUser;
+}
+
+function hashPassword(password, salt) {
+  return crypto.createHash("sha256").update(`${salt}:${password}`).digest("hex");
+}
+
+function readDb() {
+  ensureDb();
+  try {
+    const db = JSON.parse(fs.readFileSync(dbPath, "utf8"));
+    return { users: Array.isArray(db.users) ? db.users : [] };
+  } catch {
+    return { users: [] };
+  }
+}
+
+function writeDb(db) {
+  ensureDb();
+  fs.writeFileSync(dbPath, JSON.stringify({ users: db.users || [] }, null, 2));
+}
+
+function ensureDb() {
+  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+  if (!fs.existsSync(dbPath)) fs.writeFileSync(dbPath, JSON.stringify({ users: [] }, null, 2));
 }
 
 function sendJson(response, status, body) {

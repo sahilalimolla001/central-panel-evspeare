@@ -38,3 +38,13 @@ Set these environment variables in your hosting provider:
 - `UPDATE_ENDPOINT`
 
 The frontend does not show API settings. It logs in through `/api/admin/login` and uses the server-side proxy `/api/admin/proxy`.
+
+## Built-in user backend
+
+The app includes a small Node backend for creating admin, manager and picker users:
+
+- Admin-only list/create users: `/api/admin/users`
+- Picker/warehouse login: `/api/login`
+- Current logged-in staff user: `/api/me`
+
+Users are stored in `data/db.json` with salted password hashes. For production-scale use, replace this file store with your main database while keeping the same endpoint shapes.

@@ -186,7 +186,7 @@ async function loadInventory() {
 
 async function loadCreatedUsers() {
   try {
-    const payload = await apiGet("/central-panel/users");
+    const payload = await adminGet("/api/admin/users");
     store.createdUsers = asArray(payload).map(normalizeAccessUser);
     delete store.errors.createdUsers;
   } catch (error) {
@@ -239,6 +239,24 @@ async function apiPost(path, body) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.ok === false) throw new Error(data.message || data.error || `API ${response.status}`);
+  return data;
+}
+
+async function adminGet(path) {
+  const response = await fetch(path, { headers: adminHeaders(), cache: "no-store" });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok === false) throw new Error(data.message || `API ${response.status}`);
+  return data;
+}
+
+async function adminPost(path, body) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { ...adminHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok === false) throw new Error(data.message || `API ${response.status}`);
   return data;
 }
 
@@ -566,11 +584,12 @@ async function createAccessUser() {
   delete data.confirmPassword;
   const user = normalizeAccessUser({ ...data, id: data.userId, createdAt: new Date().toISOString() });
   try {
-    await apiPost("/central-panel/users", user);
+    await adminPost("/api/admin/users", data);
     toast("User backend me create ho gaya.");
   } catch {
+    const { password, ...safeUser } = user;
     const users = loadLocalUsers().filter((item) => item.userId !== user.userId);
-    users.unshift(user);
+    users.unshift(safeUser);
     localStorage.setItem("evspeareAccessUsers", JSON.stringify(users));
     toast("Backend endpoint ready nahi hai. User local draft me save ho gaya.");
   }
