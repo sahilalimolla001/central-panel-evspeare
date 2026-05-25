@@ -819,6 +819,10 @@ function renderOpsConfig() {
     ["Tote", merged.toteAssignment, "Crate assignment"],
     ["Dispatch", `Seal ${merged.bagSealCheck}`, "Rider handoff checklist"],
     ["Shiprocket", merged.shiprocketSync || "Enabled", "AWB/courier sync"],
+    ["Express app", merged.expressDelivery || "Enabled", `${merged.expressRadiusKm || 25} KM radius`],
+    ["Buy again", merged.buyAgain || "Enabled", "Customer repeat ordering"],
+    ["COD cap", `Rs. ${formatNumber(merged.codMaxAmount || 1000)}`, "Payment rule"],
+    ["Order push", merged.appOrderPush || "Website + warehouse", "Customer app fulfilment"],
     ["Cycle count", merged.cycleCount, "Warehouse audit"],
     ["Incidents", merged.incidentReporting, "Floor issue reporting"],
   ];
