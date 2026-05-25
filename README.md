@@ -39,6 +39,8 @@ Set these environment variables in your hosting provider:
 
 The frontend does not show API settings. It logs in through `/api/admin/login` and uses the server-side proxy `/api/admin/proxy`.
 
+For real warehouse user creation, set `BACKEND_BEARER_TOKEN` to the same value as the warehouse backend `INTEGRATION_API_KEY`. Then `/api/admin/users` syncs users into the warehouse database through `/api/central-panel/users`.
+
 ## Built-in user backend
 
 The app includes a small Node backend for creating admin, manager and picker users:

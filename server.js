@@ -100,6 +100,23 @@ async function handleAdminApi(request, response, requestUrl) {
 }
 
 async function handleUsersApi(request, response) {
+  if (backendToken) {
+    try {
+      const synced = await proxyCentralUsers(request);
+      response.writeHead(synced.status, {
+        "Content-Type": synced.contentType,
+        "Cache-Control": "no-store",
+      });
+      response.end(synced.text);
+      return;
+    } catch (error) {
+      if (request.method !== "GET") {
+        sendJson(response, 502, { ok: false, message: `Warehouse user sync failed: ${error.message}` });
+        return;
+      }
+    }
+  }
+
   if (request.method === "GET") {
     const db = readDb();
     sendJson(response, 200, { ok: true, users: db.users.map(publicUser) });
@@ -140,6 +157,23 @@ async function handleUsersApi(request, response) {
   }
 
   sendJson(response, 405, { ok: false, message: "Method not allowed" });
+}
+
+async function proxyCentralUsers(request) {
+  const target = `${config.backendApi}/central-panel/users`;
+  const headers = { Accept: "application/json", Authorization: `Bearer ${backendToken}` };
+  if (!["GET", "HEAD"].includes(request.method)) headers["Content-Type"] = "application/json";
+  const body = ["GET", "HEAD"].includes(request.method) ? undefined : await readText(request);
+  const upstream = await fetch(target, {
+    method: request.method,
+    headers,
+    body,
+  });
+  return {
+    status: upstream.status,
+    contentType: upstream.headers.get("content-type") || "application/json; charset=utf-8",
+    text: await upstream.text(),
+  };
 }
 
 async function handleStaffLogin(request, response) {
