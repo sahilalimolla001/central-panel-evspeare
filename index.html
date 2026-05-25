@@ -3,39 +3,39 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>EV Speare Central Panel</title>
+    <title>EV Speare Live Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="panel-shell">
+    <div class="app-layout">
       <aside class="sidebar">
         <div class="brand">
           <span class="brand-mark">EV</span>
           <div>
             <strong>EV Speare</strong>
-            <small>Central Command</small>
+            <small>Live Admin</small>
           </div>
         </div>
 
-        <nav class="nav-stack" aria-label="Admin pages">
-          <button class="active" type="button" data-page="overview">Overview</button>
-          <button type="button" data-page="products">Products</button>
+        <nav class="nav-stack" aria-label="Live panels">
+          <button class="active" type="button" data-page="dashboard">Dashboard</button>
           <button type="button" data-page="orders">Orders</button>
           <button type="button" data-page="customers">Customers</button>
-          <button type="button" data-page="picker">Picker App</button>
+          <button type="button" data-page="pickers">Pickers</button>
           <button type="button" data-page="returns">Returns</button>
-          <button type="button" data-page="inventory">Inventory</button>
-          <button type="button" data-page="warehouse">Warehouse</button>
-          <button type="button" data-page="integrations">Integrations</button>
+          <button type="button" data-page="catalog">Catalog</button>
+          <button type="button" data-page="content">Website/App Edit</button>
+          <button type="button" data-page="settings">API Settings</button>
         </nav>
 
-        <div class="sidebar-card">
-          <span>Live Sources</span>
-          <strong id="source-count">0 connected</strong>
-          <button type="button" id="refresh-all">Refresh all data</button>
+        <div class="sync-card">
+          <span>Live sync</span>
+          <strong id="sync-state">Waiting</strong>
+          <small id="last-sync">Not synced yet</small>
+          <button type="button" id="refresh-all">Refresh now</button>
         </div>
       </aside>
 
@@ -43,7 +43,7 @@
         <header class="topbar">
           <div>
             <p class="kicker">Operations cockpit</p>
-            <h1 id="page-title">Overview</h1>
+            <h1 id="page-title">Dashboard</h1>
           </div>
           <div class="top-actions">
             <a href="https://www.evspeare.shop/" target="_blank" rel="noreferrer">Open App</a>
@@ -52,324 +52,246 @@
           </div>
         </header>
 
-        <section class="hero-band">
-          <div>
-            <span>EV Speare control room</span>
-            <h2>Har website, app aur picker page ka data ek professional central panel mein.</h2>
-            <p>Products, orders, returns, support, stock, movement, dispatch aur backend health ko separate pages mein monitor karein.</p>
-          </div>
-          <div class="hero-metrics">
-            <article><span>Products</span><strong id="hero-products">--</strong></article>
-            <article><span>Orders</span><strong id="hero-orders">--</strong></article>
-            <article><span>Live Modules</span><strong id="hero-modules">--</strong></article>
-          </div>
+        <section class="control-strip">
+          <label>
+            From
+            <input id="date-from" type="date" />
+          </label>
+          <label>
+            To
+            <input id="date-to" type="date" />
+          </label>
+          <label>
+            Search
+            <input id="global-search" type="search" placeholder="Order, customer, SKU, phone" />
+          </label>
+          <button type="button" id="apply-filter">Apply</button>
+          <button type="button" id="clear-filter">Clear</button>
         </section>
 
-        <section class="page active" data-page-panel="overview">
-          <div class="status-grid" id="status-grid"></div>
-          <div class="content-grid">
-            <section class="work-panel wide">
+        <section class="page active" data-page-panel="dashboard">
+          <div class="metric-grid" id="status-metrics"></div>
+          <div class="live-grid">
+            <section class="panel span-2">
               <div class="panel-head">
                 <div>
-                  <span>Business pulse</span>
-                  <h2>Live snapshot</h2>
+                  <span>Live orders</span>
+                  <h2>Active order flow</h2>
                 </div>
-                <button type="button" data-action="refresh-all">Sync live data</button>
+                <button type="button" data-open-page="orders">View all</button>
               </div>
-              <div class="metric-grid" id="metric-grid"></div>
+              <div class="data-table" id="active-orders-table"></div>
             </section>
-            <section class="work-panel">
+            <section class="panel">
               <div class="panel-head">
                 <div>
-                  <span>System notes</span>
-                  <h2>Action required</h2>
+                  <span>Customers</span>
+                  <h2>Active customers</h2>
+                </div>
+                <button type="button" data-open-page="customers">View</button>
+              </div>
+              <div class="mini-list" id="active-customers"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>Picker team</span>
+                  <h2>Active pickers</h2>
+                </div>
+                <button type="button" data-open-page="pickers">View</button>
+              </div>
+              <div class="mini-list" id="active-pickers"></div>
+            </section>
+            <section class="panel span-2">
+              <div class="panel-head">
+                <div>
+                  <span>Date wise</span>
+                  <h2>Orders by date</h2>
                 </div>
               </div>
-              <div class="note-list" id="note-list"></div>
+              <div class="chart-list" id="date-wise"></div>
             </section>
           </div>
-          <section class="work-panel">
-            <div class="panel-head">
-              <div>
-                <span>Main panel</span>
-                <h2>All live panels</h2>
-              </div>
-            </div>
-            <div class="module-grid" id="module-grid"></div>
-          </section>
-        </section>
-
-        <section class="page" data-page-panel="products">
-          <div class="section-title">
-            <div>
-              <span>Catalog control</span>
-              <h2>Products live panel</h2>
-            </div>
-            <button type="button" data-action="load-products">Refresh products</button>
-          </div>
-          <div class="page-map" id="products-summary"></div>
-          <section class="work-panel">
-            <div class="panel-head">
-              <div>
-                <span>Website catalog</span>
-                <h2>Product rows</h2>
-              </div>
-              <input id="product-search" type="search" placeholder="Search product, SKU, category" />
-            </div>
-            <div class="data-table" id="products-table"></div>
-          </section>
         </section>
 
         <section class="page" data-page-panel="orders">
-          <div class="section-title">
-            <div>
-              <span>Order command</span>
-              <h2>Orders live panel</h2>
-            </div>
-            <button type="button" data-action="load-orders">Refresh orders</button>
-          </div>
-          <div class="page-map" id="orders-summary"></div>
-          <section class="work-panel">
+          <div class="panel">
             <div class="panel-head">
               <div>
-                <span>Customer app</span>
-                <h2>Order rows</h2>
+                <span>All statuses</span>
+                <h2>Orders, pending, shipped, delivered, cancel</h2>
               </div>
+              <button type="button" data-action="load-orders">Refresh orders</button>
             </div>
+            <div class="tabs" id="order-tabs"></div>
             <div class="data-table" id="orders-table"></div>
-          </section>
+          </div>
         </section>
 
         <section class="page" data-page-panel="customers">
-          <div class="section-title">
-            <div>
-              <span>Customer intelligence</span>
-              <h2>Customers live panel</h2>
-            </div>
-            <button type="button" data-action="load-customers">Refresh customers</button>
-          </div>
-          <div class="page-map" id="customers-summary"></div>
-          <section class="work-panel">
+          <div class="panel">
             <div class="panel-head">
               <div>
-                <span>Users</span>
-                <h2>Customer rows</h2>
+                <span>Customer CRM</span>
+                <h2>Active customer rows</h2>
               </div>
+              <button type="button" data-action="load-customers">Refresh customers</button>
             </div>
             <div class="data-table" id="customers-table"></div>
-          </section>
+          </div>
         </section>
 
-        <section class="page" data-page-panel="picker">
-          <div class="section-title">
-            <div>
-              <span>Picker mobile</span>
-              <h2>Picker app pages data</h2>
+        <section class="page" data-page-panel="pickers">
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <span>Picker operations</span>
+                <h2>Picker queue and staff</h2>
+              </div>
+              <button type="button" data-action="load-picker">Refresh picker</button>
             </div>
-            <button type="button" data-action="load-picker">Load picker data</button>
-          </div>
-          <div class="page-map" id="picker-map"></div>
-          <div class="content-grid">
-            <section class="work-panel">
-              <div class="panel-head">
-                <div>
-                  <span>Pick list</span>
-                  <h2>Orders queue</h2>
-                </div>
-              </div>
-              <div class="data-table" id="picker-orders-table"></div>
-            </section>
-            <section class="work-panel">
-              <div class="panel-head">
-                <div>
-                  <span>Returns</span>
-                  <h2>Return queue</h2>
-                </div>
-              </div>
-              <div class="data-table" id="returns-table"></div>
-            </section>
+            <div class="data-table" id="pickers-table"></div>
           </div>
         </section>
 
         <section class="page" data-page-panel="returns">
-          <div class="section-title">
-            <div>
-              <span>Reverse logistics</span>
-              <h2>Returns live panel</h2>
-            </div>
-            <button type="button" data-action="load-returns">Refresh returns</button>
-          </div>
-          <div class="page-map" id="returns-summary"></div>
-          <section class="work-panel">
+          <div class="panel">
             <div class="panel-head">
               <div>
-                <span>Approved returns</span>
-                <h2>Return rows</h2>
+                <span>Return desk</span>
+                <h2>Returns and cancellations</h2>
               </div>
+              <button type="button" data-action="load-returns">Refresh returns</button>
             </div>
-            <div class="data-table" id="returns-full-table"></div>
-          </section>
-        </section>
-
-        <section class="page" data-page-panel="inventory">
-          <div class="section-title">
-            <div>
-              <span>Warehouse stock</span>
-              <h2>Inventory live panel</h2>
-            </div>
-            <button type="button" data-action="load-inventory">Refresh inventory</button>
-          </div>
-          <div class="page-map" id="inventory-summary"></div>
-          <div class="content-grid">
-            <section class="work-panel">
-              <div class="panel-head">
-                <div>
-                  <span>Stock view</span>
-                  <h2>Inventory rows</h2>
-                </div>
-              </div>
-              <div class="data-table" id="inventory-table"></div>
-            </section>
-            <section class="work-panel">
-              <div class="panel-head">
-                <div>
-                  <span>Movement</span>
-                  <h2>Stock actions</h2>
-                </div>
-              </div>
-              <div class="note-list" id="inventory-actions"></div>
-            </section>
+            <div class="data-table" id="returns-table"></div>
           </div>
         </section>
 
-        <section class="page" data-page-panel="warehouse">
-          <div class="section-title">
-            <div>
-              <span>Warehouse backend</span>
-              <h2>Admin modules</h2>
-            </div>
-            <a class="button-link" href="https://evsphere-warehouse-backend-production.up.railway.app/users" target="_blank" rel="noreferrer">Open backend admin</a>
-          </div>
-          <div class="page-map" id="warehouse-map"></div>
-          <div class="content-grid">
-            <section class="work-panel">
-              <div class="panel-head">
-                <div>
-                  <span>Backend modules</span>
-                  <h2>Warehouse rows</h2>
-                </div>
-              </div>
-              <div class="data-table" id="warehouse-table"></div>
-            </section>
-            <section class="work-panel">
-              <div class="panel-head">
-                <div>
-                  <span>Service map</span>
-                  <h2>Connected apps</h2>
-                </div>
-              </div>
-              <div class="note-list" id="service-map"></div>
-            </section>
-          </div>
-          <section class="work-panel">
+        <section class="page" data-page-panel="catalog">
+          <div class="panel">
             <div class="panel-head">
               <div>
-                <span>Backend health</span>
-                <h2>API diagnostics</h2>
+                <span>Website catalog</span>
+                <h2>Products and stock</h2>
               </div>
-              <button type="button" data-action="test-health">Run health check</button>
+              <button type="button" data-action="load-products">Refresh catalog</button>
             </div>
-            <div class="diagnostic-log" id="diagnostic-log"></div>
-          </section>
+            <div class="data-table" id="products-table"></div>
+          </div>
         </section>
 
-        <section class="page" data-page-panel="integrations">
-          <div class="section-title">
-            <div>
-              <span>Settings</span>
-              <h2>API configuration</h2>
-            </div>
-            <button type="button" id="save-config">Save configuration</button>
+        <section class="page" data-page-panel="content">
+          <div class="editor-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>Website</span>
+                  <h2>Home and offer edit</h2>
+                </div>
+                <button type="button" data-save-editor="website">Save</button>
+              </div>
+              <form class="edit-form" data-editor="website">
+                <label>Promo title <input name="promoTitle" value="EV spare sale" /></label>
+                <label>Promo copy <input name="promoCopy" value="Quality parts with fast dispatch" /></label>
+                <label>Support email <input name="supportEmail" value="support@evspeare.com" /></label>
+                <label>Support phone <input name="supportPhone" value="+91 6289498289" /></label>
+              </form>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>Customer app</span>
+                  <h2>Checkout and policy edit</h2>
+                </div>
+                <button type="button" data-save-editor="app">Save</button>
+              </div>
+              <form class="edit-form" data-editor="app">
+                <label>Store pincode <input name="storePincode" value="700136" /></label>
+                <label>Delivery radius KM <input name="deliveryRadius" type="number" value="25" /></label>
+                <label>COD enabled <select name="codEnabled"><option value="yes">Yes</option><option value="no">No</option></select></label>
+                <label>Online payment <select name="onlinePayment"><option value="yes">Yes</option><option value="no">No</option></select></label>
+              </form>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>Picker app</span>
+                  <h2>Warehouse workflow edit</h2>
+                </div>
+                <button type="button" data-save-editor="picker">Save</button>
+              </div>
+              <form class="edit-form" data-editor="picker">
+                <label>Default warehouse ID <input name="warehouseId" placeholder="1" /></label>
+                <label>Auto refresh seconds <input name="pickerRefresh" type="number" value="15" /></label>
+                <label>Require bin scan <select name="binScan"><option value="yes">Yes</option><option value="no">No</option></select></label>
+                <label>Require product scan <select name="productScan"><option value="yes">Yes</option><option value="no">No</option></select></label>
+              </form>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>System</span>
+                  <h2>Edit audit</h2>
+                </div>
+              </div>
+              <div class="mini-list" id="edit-log"></div>
+            </section>
           </div>
-          <form class="settings-grid" id="settings-form">
-            <label>
-              Website app URL
-              <input name="websiteUrl" value="https://www.evspeare.shop" />
-            </label>
-            <label>
-              Picker app URL
-              <input name="pickerUrl" value="https://evsphere-warehouse-mobile-production.up.railway.app" />
-            </label>
-            <label>
-              Backend API URL
-              <input name="backendApi" value="https://evsphere-warehouse-backend-production.up.railway.app/api" />
-            </label>
-            <label>
-              Website products endpoint
-              <input name="productsEndpoint" value="https://www.evspeare.shop/api/mobile/products" />
-            </label>
-            <label>
-              Customer orders endpoint
-              <input name="ordersEndpoint" value="https://www.evspeare.shop/api/mobile/orders" />
-            </label>
-            <label>
-              Customers endpoint
-              <input name="customersEndpoint" value="/customers" />
-            </label>
-            <label>
-              Picker orders endpoint
-              <input name="pickerOrdersEndpoint" value="/pick-list" />
-            </label>
-            <label>
-              Returns endpoint
-              <input name="returnsEndpoint" value="/returns/pick-list" />
-            </label>
-            <label>
-              Inventory endpoint
-              <input name="inventoryEndpoint" value="/inventory" />
-            </label>
-            <label>
-              Dashboard endpoint
-              <input name="dashboardEndpoint" value="/dashboard" />
-            </label>
-            <label>
-              Picker token
-              <input name="pickerToken" type="password" placeholder="Paste picker/admin bearer token" />
-            </label>
-            <label>
-              Warehouse ID
-              <input name="warehouseId" placeholder="Optional" />
-            </label>
-            <label>
-              Auto refresh seconds
-              <input name="autoRefreshSeconds" type="number" min="10" value="30" />
-            </label>
-          </form>
-          <section class="work-panel">
+        </section>
+
+        <section class="page" data-page-panel="settings">
+          <div class="panel">
             <div class="panel-head">
               <div>
-                <span>Token helper</span>
-                <h2>Warehouse login se token lo</h2>
+                <span>API connection</span>
+                <h2>Live endpoint settings</h2>
               </div>
-              <button type="button" id="login-api">Login and save token</button>
+              <button type="button" id="save-config">Save config</button>
             </div>
-            <form class="settings-grid compact" id="login-form">
-              <label>
-                Staff email
-                <input name="email" type="email" autocomplete="username" placeholder="admin@example.com" />
-              </label>
-              <label>
-                Password
-                <input name="password" type="password" autocomplete="current-password" placeholder="Password" />
-              </label>
+            <form class="settings-grid" id="settings-form">
+              <label>Website URL <input name="websiteUrl" value="https://www.evspeare.shop" /></label>
+              <label>Picker URL <input name="pickerUrl" value="https://evsphere-warehouse-mobile-production.up.railway.app" /></label>
+              <label>Backend API <input name="backendApi" value="https://evsphere-warehouse-backend-production.up.railway.app/api" /></label>
+              <label>Products endpoint <input name="productsEndpoint" value="https://www.evspeare.shop/api/mobile/products" /></label>
+              <label>Orders endpoint <input name="ordersEndpoint" value="https://www.evspeare.shop/api/mobile/orders" /></label>
+              <label>Customers endpoint <input name="customersEndpoint" value="/customers" /></label>
+              <label>Picker orders endpoint <input name="pickerOrdersEndpoint" value="/pick-list" /></label>
+              <label>Returns endpoint <input name="returnsEndpoint" value="/returns/pick-list" /></label>
+              <label>Update endpoint <input name="updateEndpoint" value="/central-panel/update" /></label>
+              <label>Bearer token <input name="token" type="password" placeholder="Admin/picker token" /></label>
+              <label>Warehouse ID <input name="warehouseId" placeholder="Optional" /></label>
+              <label>Auto refresh seconds <input name="autoRefreshSeconds" type="number" min="10" value="30" /></label>
             </form>
-            <div class="diagnostic-log" id="login-result">
-              <article><strong>Ready</strong><p>Email/password dalke token automatically save karein.</p></article>
+
+            <div class="login-box">
+              <form class="settings-grid compact" id="login-form">
+                <label>Staff email <input name="email" type="email" autocomplete="username" /></label>
+                <label>Password <input name="password" type="password" autocomplete="current-password" /></label>
+              </form>
+              <button type="button" id="login-api">Login and save token</button>
+              <div class="mini-list" id="login-result"></div>
             </div>
-          </section>
+          </div>
         </section>
       </main>
     </div>
+
+    <aside class="drawer" id="edit-drawer" aria-hidden="true">
+      <div class="drawer-panel">
+        <div class="panel-head">
+          <div>
+            <span id="drawer-kicker">Edit</span>
+            <h2 id="drawer-title">Record</h2>
+          </div>
+          <button type="button" id="close-drawer">Close</button>
+        </div>
+        <form class="edit-form" id="record-form"></form>
+        <button class="primary" type="button" id="save-record">Save record</button>
+      </div>
+    </aside>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="app.js"></script>
