@@ -7,19 +7,21 @@ const defaults = {
   customersEndpoint: "/customers",
   pickerOrdersEndpoint: "/pick-list",
   returnsEndpoint: "/returns/pick-list",
+  inventoryEndpoint: "/inventory",
   updateEndpoint: "/central-panel/update",
-  token: "",
   warehouseId: "",
   autoRefreshSeconds: "30",
 };
 
 const store = {
   config: loadConfig(),
+  adminToken: localStorage.getItem("evspeareAdminSession") || "",
   products: [],
   orders: [],
   customers: [],
   pickerOrders: [],
   returns: [],
+  inventory: [],
   activeTab: "all",
   editing: null,
   errors: {},
@@ -33,13 +35,12 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 document.addEventListener("DOMContentLoaded", () => {
   setDefaultDates();
+  bindLogin();
   bindNavigation();
   bindActions();
-  hydrateSettings();
   hydrateEditors();
   renderAll();
-  refreshAll();
-  startAutoRefresh();
+  initializeSession();
 });
 
 function bindNavigation() {
@@ -60,12 +61,8 @@ function bindActions() {
   $("#apply-filter").addEventListener("click", renderAll);
   $("#clear-filter").addEventListener("click", clearFilters);
   $("#global-search").addEventListener("input", renderAll);
-  $("#save-config").addEventListener("click", () => {
-    saveConfig();
-    startAutoRefresh();
-    refreshAll();
-  });
-  $("#login-api").addEventListener("click", loginAndSaveToken);
+  $("#warehouse-filter").addEventListener("change", renderAll);
+  $("#tracking-form").addEventListener("submit", trackOrder);
   $("#close-drawer").addEventListener("click", closeDrawer);
   $("#save-record").addEventListener("click", saveRecord);
   $$("[data-action='load-products']").forEach((button) => button.addEventListener("click", loadProducts));
@@ -73,7 +70,51 @@ function bindActions() {
   $$("[data-action='load-customers']").forEach((button) => button.addEventListener("click", loadCustomers));
   $$("[data-action='load-picker']").forEach((button) => button.addEventListener("click", loadPicker));
   $$("[data-action='load-returns']").forEach((button) => button.addEventListener("click", loadReturns));
+  $$("[data-action='load-inventory']").forEach((button) => button.addEventListener("click", loadInventory));
   $$("[data-save-editor]").forEach((button) => button.addEventListener("click", () => saveEditor(button.dataset.saveEditor)));
+}
+
+function bindLogin() {
+  $("#admin-login-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
+    try {
+      const response = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok || data.ok === false) throw new Error(data.message || "Login failed");
+      store.adminToken = data.token;
+      localStorage.setItem("evspeareAdminSession", data.token);
+      $("#login-gate").classList.remove("active");
+      await initializeSession();
+    } catch (error) {
+      toast(error.message);
+    }
+  });
+}
+
+async function initializeSession() {
+  if (!store.adminToken) {
+    $("#login-gate").classList.add("active");
+    return;
+  }
+  try {
+    const response = await fetch("/api/admin/config", { headers: adminHeaders(), cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.message || "Config failed");
+    store.config = { ...store.config, ...data.config };
+    $("#login-gate").classList.remove("active");
+    await refreshAll();
+    startAutoRefresh();
+  } catch (error) {
+    localStorage.removeItem("evspeareAdminSession");
+    store.adminToken = "";
+    $("#login-gate").classList.add("active");
+    toast(error.message);
+  }
 }
 
 function openPage(page, title) {
@@ -85,6 +126,7 @@ function openPage(page, title) {
 async function refreshAll() {
   setSyncState("Syncing");
   await Promise.allSettled([loadProducts(), loadOrders(), loadCustomers(), loadPicker(), loadReturns()]);
+  await loadInventory();
   store.lastSync = new Date();
   setSyncState(Object.keys(store.errors).length ? "Partial" : "Live");
   renderAll();
@@ -122,6 +164,22 @@ async function loadReturns() {
   renderAll();
 }
 
+async function loadInventory() {
+  await loadRows("inventory", store.config.inventoryEndpoint, normalizeInventory, ["/inventory", "/products", "/stock"]);
+  if (!store.inventory.length && store.products.length) {
+    store.inventory = store.products.map((item) => ({
+      id: item.id,
+      name: item.name,
+      sku: item.sku,
+      warehouseId: item.warehouseId || "default",
+      stock: item.stock,
+      value: Number(item.price || 0) * Number(item.stock || 0),
+      location: item.location || "-",
+    }));
+  }
+  renderAll();
+}
+
 async function loadRows(key, endpoint, normalizer, fallback = []) {
   const candidates = [...new Set([endpoint, ...fallback].filter(Boolean))];
   let lastError = null;
@@ -140,8 +198,8 @@ async function loadRows(key, endpoint, normalizer, fallback = []) {
 }
 
 async function apiGet(path) {
-  const response = await fetch(endpointUrl(path), {
-    headers: authHeaders(),
+  const response = await fetch(proxyUrl(path), {
+    headers: adminHeaders(),
     credentials: "include",
     cache: "no-store",
   });
@@ -157,9 +215,9 @@ async function apiGet(path) {
 }
 
 async function apiPost(path, body) {
-  const response = await fetch(endpointUrl(path), {
+  const response = await fetch(proxyUrl(path), {
     method: "POST",
-    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    headers: { ...adminHeaders(), "Content-Type": "application/json" },
     credentials: "include",
     body: JSON.stringify(body),
   });
@@ -168,17 +226,12 @@ async function apiPost(path, body) {
   return data;
 }
 
-function endpointUrl(path) {
-  const value = String(path || "");
-  if (/^https?:\/\//i.test(value)) return value;
-  return `${store.config.backendApi.replace(/\/+$/, "")}${value.startsWith("/") ? value : `/${value}`}`;
+function proxyUrl(path) {
+  return `/api/admin/proxy?path=${encodeURIComponent(path || "/")}`;
 }
 
-function authHeaders() {
-  const headers = { Accept: "application/json" };
-  if (store.config.token) headers.Authorization = `Bearer ${store.config.token}`;
-  if (store.config.warehouseId) headers["X-Warehouse-Id"] = store.config.warehouseId;
-  return headers;
+function adminHeaders() {
+  return { Accept: "application/json", Authorization: `Bearer ${store.adminToken}` };
 }
 
 function renderAll() {
@@ -189,12 +242,16 @@ function renderAll() {
   renderPickers();
   renderReturns();
   renderProducts();
+  renderInventory();
   renderDashboardLists();
   renderEditLog();
 }
 
 function renderMetrics() {
   const filteredOrders = filtered(store.orders, "orders");
+  const visibleInventory = filtered(store.inventory, "inventory");
+  const inventoryQty = visibleInventory.reduce((sum, item) => sum + Number(item.stock || 0), 0);
+  const inventoryValue = visibleInventory.reduce((sum, item) => sum + Number(item.value || 0), 0);
   const rows = [
     ["Live orders", filteredOrders.length, "All orders in date/search filter", "blue"],
     ["Pending", countStatus(filteredOrders, ["pending", "new", "placed", "processing"]), "Waiting action", "amber"],
@@ -205,8 +262,9 @@ function renderMetrics() {
     ["Active customers", filtered(store.customers, "customers").length, "Customer rows", "green"],
     ["Active pickers", activePickers().length, "Picker staff/queue", "blue"],
     ["Active order", activeOrders().length, "Pending + shipped", "amber"],
-    ["Catalog", filtered(store.products, "products").length, "Website products", "green"],
-    ["Out of stock", store.products.filter((item) => item.stock <= 0).length, "Needs refill", "rose"],
+    ["Total inventory", inventoryQty || "--", "Warehouse-wise stock", "green"],
+    ["Inventory value", `Rs. ${formatNumber(inventoryValue)}`, "Stock value", "green"],
+    ["Out of stock", visibleInventory.filter((item) => item.stock <= 0).length, "Needs refill", "rose"],
     ["Sync", store.lastSync ? store.lastSync.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "--", "Last update", "blue"],
   ];
   $("#status-metrics").innerHTML = rows.map(([label, value, help, color]) => `
@@ -237,19 +295,21 @@ function renderOrders() {
   let rows = filtered(store.orders, "orders");
   if (store.activeTab !== "all") rows = rows.filter((row) => tabMatches(row.status, store.activeTab));
   $("#orders-table").innerHTML = rows.length ? rows.slice(0, 300).map((item) => rowHtml("orders", item, [
-    [item.number, item.createdAt || "No date"],
-    [item.customer, item.phone || "No phone"],
-    [`Rs. ${formatNumber(item.total)}`, `${item.items || 0} items`],
-    [statusPill(item.status), "Status"],
-    [item.address || item.warehouse || "-", "Address/Warehouse"],
+    [item.orderId || item.number, `Order ID / ${item.date || "No date"} ${item.time || ""}`],
+    [item.customerId || item.customer, `Customer / ${item.phone || "No phone"}`],
+    [item.warehouseId || "-", `Warehouse ID / Picker ${item.pickerId || "-"}`],
+    [item.pincode || "-", `Pincode / AWB ${item.awb || "-"}`],
+    [statusPill(item.status), `Rs. ${formatNumber(item.total)}`],
+    [item.location || item.address || "-", "Location"],
   ])).join("") : emptyState("Order rows live endpoint/token ke baad dikhenge.", store.errors.orders);
   $("#active-orders-table").innerHTML = activeOrders().slice(0, 8).map((item) => rowHtml("orders", item, [
-    [item.number, item.createdAt || "No date"],
+    [item.orderId || item.number, `${item.date || "No date"} ${item.time || ""}`],
     [item.customer, item.phone || "No phone"],
-    [statusPill(item.status), "Live status"],
-    [`Rs. ${formatNumber(item.total)}`, `${item.items || 0} items`],
-    [item.address || "-", "Address"],
+    [item.warehouseId || "-", `Picker ${item.pickerId || "-"}`],
+    [statusPill(item.status), `AWB ${item.awb || "-"}`],
+    [item.location || item.pincode || "-", "Location/Pincode"],
   ])).join("") || emptyState("No active orders in current filter.");
+  populateWarehouseFilter();
 }
 
 function renderCustomers() {
@@ -266,10 +326,10 @@ function renderCustomers() {
 function renderPickers() {
   const rows = filtered(store.pickerOrders, "pickers");
   $("#pickers-table").innerHTML = rows.length ? rows.slice(0, 300).map((item) => rowHtml("pickers", item, [
-    [item.number, item.createdAt || "No date"],
-    [item.picker || item.customer, item.phone || "Picker/order"],
+    [item.orderId || item.number, item.createdAt || "No date"],
+    [item.pickerId || item.picker || item.customer, item.phone || "Picker/order"],
     [statusPill(item.status), "Status"],
-    [item.warehouse || "-", "Warehouse"],
+    [item.warehouseId || item.warehouse || "-", "Warehouse"],
     [`${item.items || 0} items`, `Rs. ${formatNumber(item.total)}`],
   ])).join("") : emptyState("Picker queue token/login ke baad live dikhega.", store.errors.pickerOrders);
 }
@@ -301,8 +361,21 @@ function renderProducts() {
     [`Rs. ${formatNumber(item.price)}`, item.category || "Catalog"],
     [statusPill(item.stock > 0 ? "active" : "out_of_stock"), "Stock status"],
     [`Stock ${formatNumber(item.stock)}`, "Quantity"],
-    [item.source || "Website", "Source"],
+    [item.warehouseId || item.source || "Website", "Warehouse/Source"],
   ])).join("") : emptyState("Products public website se load hone chahiye.", store.errors.products);
+  populateWarehouseFilter();
+}
+
+function renderInventory() {
+  const rows = filtered(store.inventory, "inventory");
+  $("#inventory-table").innerHTML = rows.length ? rows.slice(0, 300).map((item) => rowHtml("products", item, [
+    [item.name, item.sku || "No SKU"],
+    [item.warehouseId || "-", "Warehouse ID"],
+    [item.location || "-", "Location"],
+    [`Stock ${formatNumber(item.stock)}`, "Total inventory"],
+    [`Rs. ${formatNumber(item.value)}`, "Inventory value"],
+  ])).join("") : emptyState("Inventory backend endpoint connect hone ke baad warehouse-wise stock dikhega.", store.errors.inventory);
+  populateWarehouseFilter();
 }
 
 function renderDashboardLists() {
@@ -323,6 +396,57 @@ function renderDateWise() {
       <div class="bar"><i style="width:${Math.max(4, (item.count / max) * 100)}%"></i></div>
     </article>
   `).join("") : emptyState("Date-wise orders available nahi hain.");
+}
+
+function populateWarehouseFilter() {
+  const select = $("#warehouse-filter");
+  const current = select.value;
+  const warehouses = [...new Set([
+    ...store.orders.map((item) => item.warehouseId || item.warehouse),
+    ...store.pickerOrders.map((item) => item.warehouseId || item.warehouse),
+    ...store.inventory.map((item) => item.warehouseId || item.warehouse),
+    ...store.products.map((item) => item.warehouseId || item.warehouse),
+  ].filter(Boolean).map(String))].sort();
+  select.innerHTML = `<option value="">All warehouses</option>${warehouses.map((id) => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`).join("")}`;
+  if (warehouses.includes(current)) select.value = current;
+}
+
+function trackOrder(event) {
+  event.preventDefault();
+  const query = new FormData(event.currentTarget).get("query").trim().toLowerCase();
+  if (!query) {
+    $("#tracking-result").innerHTML = emptyState("Order ID, AWB, customer ID ya phone enter karein.");
+    return;
+  }
+  const matches = [...store.orders, ...store.pickerOrders, ...store.returns].filter((item) => JSON.stringify(item).toLowerCase().includes(query));
+  $("#tracking-result").innerHTML = matches.length ? matches.slice(0, 20).map((item) => `
+    <article class="tracking-card">
+      <div>
+        <span>Order</span>
+        <strong>${escapeHtml(item.orderId || item.number)}</strong>
+      </div>
+      <div>
+        <span>Status</span>
+        ${statusPill(item.status)}
+      </div>
+      <div>
+        <span>Customer</span>
+        <strong>${escapeHtml(item.customer || "-")}</strong>
+      </div>
+      <div>
+        <span>AWB</span>
+        <strong>${escapeHtml(item.awb || "-")}</strong>
+      </div>
+      <div>
+        <span>Warehouse</span>
+        <strong>${escapeHtml(item.warehouseId || item.warehouse || "-")}</strong>
+      </div>
+      <div>
+        <span>Location</span>
+        <strong>${escapeHtml(item.location || item.address || "-")}</strong>
+      </div>
+    </article>
+  `).join("") : emptyState("Is query par koi order nahi mila.");
 }
 
 function rowHtml(type, item, cells) {
@@ -399,11 +523,11 @@ async function saveEditor(section) {
 
 function editableFields(type, item) {
   const common = {
-    orders: [["status", "Status", item.status], ["customer", "Customer", item.customer], ["phone", "Phone", item.phone], ["address", "Address", item.address], ["total", "Total", item.total]],
+    orders: [["status", "Status", item.status], ["orderId", "Order ID", item.orderId], ["customerId", "Customer ID", item.customerId], ["warehouseId", "Warehouse ID", item.warehouseId], ["pickerId", "Picker ID", item.pickerId], ["awb", "AWB", item.awb], ["pincode", "Pincode", item.pincode], ["location", "Location", item.location], ["customer", "Customer", item.customer], ["phone", "Phone", item.phone], ["address", "Address", item.address], ["total", "Total", item.total]],
     customers: [["name", "Name", item.name], ["phone", "Phone", item.phone], ["email", "Email", item.email], ["status", "Status", item.status]],
     pickers: [["status", "Status", item.status], ["picker", "Picker", item.picker], ["warehouse", "Warehouse", item.warehouse]],
     returns: [["status", "Status", item.status], ["reason", "Reason", item.reason], ["customer", "Customer", item.customer]],
-    products: [["name", "Product name", item.name], ["sku", "SKU", item.sku], ["price", "Price", item.price], ["stock", "Stock", item.stock], ["category", "Category", item.category]],
+    products: [["name", "Product name", item.name], ["sku", "SKU", item.sku], ["price", "Price", item.price], ["stock", "Stock", item.stock], ["warehouseId", "Warehouse ID", item.warehouseId], ["category", "Category", item.category]],
   };
   return common[type] || Object.entries(item).slice(0, 8).map(([key, value]) => [key, key, value]);
 }
@@ -418,13 +542,6 @@ function collectionFor(type) {
   }[type] || [];
 }
 
-function hydrateSettings() {
-  const form = $("#settings-form");
-  Object.entries(store.config).forEach(([key, value]) => {
-    if (form.elements[key]) form.elements[key].value = value;
-  });
-}
-
 function hydrateEditors() {
   $$("[data-editor]").forEach((form) => {
     const saved = loadLocalDraft(`editor:${form.dataset.editor}`);
@@ -434,51 +551,19 @@ function hydrateEditors() {
   });
 }
 
-function saveConfig() {
-  const form = $("#settings-form");
-  store.config = { ...store.config, ...Object.fromEntries(new FormData(form).entries()) };
-  store.config.backendApi = store.config.backendApi.replace(/\/+$/, "");
-  localStorage.setItem("evspeareLiveAdminConfig", JSON.stringify(store.config));
-  toast("Config saved.");
-}
-
-async function loginAndSaveToken() {
-  const form = $("#login-form");
-  const email = form.elements.email.value.trim();
-  const password = form.elements.password.value;
-  if (!email || !password) {
-    $("#login-result").innerHTML = miniCard("Missing login", "Email/password required", "");
-    return;
-  }
-  saveConfig();
-  try {
-    const data = await apiPost("/login", { email, password });
-    const token = data.token || data.access_token || data.accessToken || "";
-    if (token) {
-      store.config.token = token;
-      localStorage.setItem("evspeareLiveAdminConfig", JSON.stringify(store.config));
-      hydrateSettings();
-      $("#login-result").innerHTML = miniCard("Token saved", "Live protected panels unlocked", "");
-    } else {
-      $("#login-result").innerHTML = miniCard("Login done", "No token returned, cookie session may work", "");
-    }
-    refreshAll();
-  } catch (error) {
-    $("#login-result").innerHTML = miniCard("Login failed", error.message, "");
-  }
-}
-
 function filtered(rows, type) {
   const query = $("#global-search").value.trim().toLowerCase();
   const from = $("#date-from").value;
   const to = $("#date-to").value;
+  const warehouse = $("#warehouse-filter").value;
   return rows.filter((row) => {
     const blob = JSON.stringify(row).toLowerCase();
     const date = dateKey(row.createdAt);
     const queryOk = !query || blob.includes(query);
     const fromOk = !from || !date || date >= from;
     const toOk = !to || !date || date <= to;
-    return queryOk && fromOk && toOk;
+    const warehouseOk = !warehouse || String(row.warehouseId || row.warehouse || "").toLowerCase() === warehouse.toLowerCase();
+    return queryOk && fromOk && toOk && warehouseOk;
   });
 }
 
@@ -565,6 +650,8 @@ function normalizeProduct(item, index = 0) {
     sku: text(item, ["sku", "ean", "barcode", "product_sku"]),
     price: number(item, ["price", "sale_price", "selling_price", "mrp", "amount"]),
     stock: number(item, ["stockQuantity", "stock_quantity", "available_quantity", "quantity", "stock"]),
+    warehouseId: text(item, ["warehouseId", "warehouse_id", "warehouse", "warehouse_code"]),
+    location: text(item, ["location", "bin", "location_code"]),
     category: text(item, ["category", "category_name"]) || "Catalog",
     source: text(item, ["source"]) || "Website",
   };
@@ -573,7 +660,14 @@ function normalizeProduct(item, index = 0) {
 function normalizeOrder(item, index = 0) {
   return {
     id: String(item.id || item.orderId || item.order_number || item.website_order_id || index),
+    orderId: text(item, ["order_id", "orderId", "order_number", "website_order_id", "id"]) || `Order ${index + 1}`,
     number: text(item, ["order_number", "website_order_id", "orderId", "id"]) || `Order ${index + 1}`,
+    customerId: text(item, ["customer_id", "customerId", "user_id", "userId"]) || text(item.customer, ["id"]),
+    warehouseId: text(item, ["warehouse_id", "warehouseId", "warehouse", "warehouse_code"]) || text(item.warehouse, ["id", "code", "name"]),
+    pickerId: text(item, ["picker_id", "pickerId", "staff_id"]) || text(item.picker, ["id"]),
+    awb: text(item, ["awb", "awb_number", "tracking_number", "trackingId"]),
+    pincode: text(item, ["pincode", "pin", "postal_code"]) || text(item.address, ["pincode", "pin"]),
+    location: text(item, ["location", "city", "area"]) || text(item.address, ["city", "area", "full"]),
     customer: text(item, ["customer_name", "name"]) || text(item.customer, ["name"]) || "Customer",
     phone: text(item, ["phone", "mobile", "customer_phone"]) || text(item.customer, ["phone", "mobile"]),
     address: text(item, ["address", "delivery_address"]) || text(item.address, ["line1", "full"]),
@@ -581,6 +675,8 @@ function normalizeOrder(item, index = 0) {
     total: number(item, ["total", "amount", "grand_total"]) || number(item.amounts, ["total"]),
     items: Array.isArray(item.items) ? item.items.length : number(item, ["item_count", "items_count"]),
     createdAt: text(item, ["created_at", "createdAt", "date", "ordered_at"]),
+    date: dateKey(text(item, ["created_at", "createdAt", "date", "ordered_at"])),
+    time: timeKey(text(item, ["created_at", "createdAt", "date", "ordered_at"])),
     reason: text(item, ["reason", "cancel_reason"]),
   };
 }
@@ -612,11 +708,28 @@ function normalizeReturn(item, index = 0) {
     id: String(item.id || item.return_number || index),
     number: text(item, ["return_number", "website_order_id", "id"]) || `Return ${index + 1}`,
     orderId: text(item, ["order_id", "orderId", "website_order_id"]),
+    warehouseId: text(item, ["warehouse_id", "warehouseId", "warehouse", "warehouse_code"]),
+    awb: text(item, ["awb", "awb_number", "tracking_number"]),
     customer: text(item, ["customer_name", "name"]) || text(item.customer, ["name"]) || "Customer",
     phone: text(item, ["phone", "mobile"]) || text(item.customer, ["phone", "mobile"]),
     status: text(item, ["status"]) || "return",
     reason: text(item, ["reason", "note", "details"]) || "Return",
     createdAt: text(item, ["created_at", "createdAt", "date"]),
+  };
+}
+
+function normalizeInventory(item, index = 0) {
+  const product = item.product || item;
+  const stock = number(item, ["available_quantity", "available", "stock", "quantity", "qty"]) || number(product, ["stockQuantity", "stock_quantity", "stock"]);
+  const price = number(product, ["price", "sale_price", "selling_price", "mrp", "amount"]);
+  return {
+    id: String(item.id || product.id || product.sku || index),
+    name: text(product, ["name", "title", "product_name"]) || `Inventory ${index + 1}`,
+    sku: text(product, ["sku", "barcode", "ean"]),
+    warehouseId: text(item, ["warehouse_id", "warehouseId", "warehouse", "warehouse_code"]) || text(item.warehouse, ["id", "code", "name"]),
+    location: text(item, ["location", "location_code", "full_code", "barcode", "bin"]) || text(item.location, ["full_code", "barcode", "code"]),
+    stock,
+    value: stock * price,
   };
 }
 
@@ -654,6 +767,14 @@ function dateKey(value) {
   const date = new Date(value);
   if (!Number.isNaN(date.getTime())) return date.toISOString().slice(0, 10);
   const match = String(value).match(/\d{4}-\d{2}-\d{2}/);
+  return match ? match[0] : "";
+}
+
+function timeKey(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime())) return date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  const match = String(value).match(/\b\d{1,2}:\d{2}(:\d{2})?\b/);
   return match ? match[0] : "";
 }
 

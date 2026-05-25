@@ -22,11 +22,19 @@ The server uses Railway's `PORT` automatically.
 
 ## Connect data
 
-Open the deployed panel, go to `Integrations`, then set:
+Set these environment variables in your hosting provider:
 
-- Website app URL: `https://www.evspeare.shop`
-- Backend API URL: `https://evsphere-warehouse-backend-production.up.railway.app/api`
-- Website products endpoint: `https://www.evspeare.shop/api/mobile/products`
-- Customer orders endpoint: `https://www.evspeare.shop/api/mobile/orders`
-- Picker token: staff/admin bearer token if required
-- Warehouse ID: optional
+- `CENTRAL_ADMIN_ID`
+- `CENTRAL_ADMIN_PASSWORD`
+- `BACKEND_API_URL`
+- `BACKEND_BEARER_TOKEN` if protected backend endpoints need a token
+- `WAREHOUSE_ID` optional default warehouse
+- `PRODUCTS_ENDPOINT`
+- `ORDERS_ENDPOINT`
+- `CUSTOMERS_ENDPOINT`
+- `PICKER_ORDERS_ENDPOINT`
+- `RETURNS_ENDPOINT`
+- `INVENTORY_ENDPOINT`
+- `UPDATE_ENDPOINT`
+
+The frontend does not show API settings. It logs in through `/api/admin/login` and uses the server-side proxy `/api/admin/proxy`.

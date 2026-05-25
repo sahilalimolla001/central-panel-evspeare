@@ -10,6 +10,19 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <section class="login-gate active" id="login-gate">
+      <form class="login-panel" id="admin-login-form">
+        <div>
+          <p class="kicker">Secure access</p>
+          <h1>EV Speare Admin Login</h1>
+        </div>
+        <label>Admin ID <input name="adminId" autocomplete="username" placeholder="admin" required /></label>
+        <label>Password <input name="password" type="password" autocomplete="current-password" required /></label>
+        <button class="primary" type="submit">Open live panel</button>
+        <p class="login-note">Default local login: admin / admin123. Hosting par env me CENTRAL_ADMIN_ID aur CENTRAL_ADMIN_PASSWORD set karein.</p>
+      </form>
+    </section>
+
     <div class="app-layout">
       <aside class="sidebar">
         <div class="brand">
@@ -26,9 +39,10 @@
           <button type="button" data-page="customers">Customers</button>
           <button type="button" data-page="pickers">Pickers</button>
           <button type="button" data-page="returns">Returns</button>
+          <button type="button" data-page="inventory">Inventory</button>
           <button type="button" data-page="catalog">Catalog</button>
+          <button type="button" data-page="tracking">Order Tracking</button>
           <button type="button" data-page="content">Website/App Edit</button>
-          <button type="button" data-page="settings">API Settings</button>
         </nav>
 
         <div class="sync-card">
@@ -64,6 +78,12 @@
           <label>
             Search
             <input id="global-search" type="search" placeholder="Order, customer, SKU, phone" />
+          </label>
+          <label>
+            Warehouse
+            <select id="warehouse-filter">
+              <option value="">All warehouses</option>
+            </select>
           </label>
           <button type="button" id="apply-filter">Apply</button>
           <button type="button" id="clear-filter">Clear</button>
@@ -128,6 +148,22 @@
           </div>
         </section>
 
+        <section class="page" data-page-panel="tracking">
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <span>Track and trace</span>
+                <h2>Search order ID, AWB, customer ID or phone</h2>
+              </div>
+            </div>
+            <form class="tracking-search" id="tracking-form">
+              <input name="query" placeholder="Order ID / AWB / Customer ID / Phone" />
+              <button type="submit">Track order</button>
+            </form>
+            <div class="tracking-result" id="tracking-result"></div>
+          </div>
+        </section>
+
         <section class="page" data-page-panel="customers">
           <div class="panel">
             <div class="panel-head">
@@ -180,6 +216,19 @@
           </div>
         </section>
 
+        <section class="page" data-page-panel="inventory">
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <span>Warehouse stock</span>
+                <h2>Inventory warehouse-wise</h2>
+              </div>
+              <button type="button" data-action="load-inventory">Refresh inventory</button>
+            </div>
+            <div class="data-table" id="inventory-table"></div>
+          </div>
+        </section>
+
         <section class="page" data-page-panel="content">
           <div class="editor-grid">
             <section class="panel">
@@ -191,10 +240,24 @@
                 <button type="button" data-save-editor="website">Save</button>
               </div>
               <form class="edit-form" data-editor="website">
-                <label>Promo title <input name="promoTitle" value="EV spare sale" /></label>
-                <label>Promo copy <input name="promoCopy" value="Quality parts with fast dispatch" /></label>
-                <label>Support email <input name="supportEmail" value="support@evspeare.com" /></label>
-                <label>Support phone <input name="supportPhone" value="+91 6289498289" /></label>
+                <details open>
+                  <summary>Home banners and catalog</summary>
+                  <div class="option-row">
+                    <label>Promo title <input name="promoTitle" value="EV spare sale" /></label>
+                    <label>Promo copy <input name="promoCopy" value="Quality parts with fast dispatch" /></label>
+                    <label>Hero status <select name="heroStatus"><option>Active</option><option>Hidden</option></select></label>
+                    <label>Featured category <select name="featuredCategory"><option>Deals</option><option>Motors</option><option>Lights</option><option>Chargers</option></select></label>
+                  </div>
+                </details>
+                <details>
+                  <summary>Support and policies</summary>
+                  <div class="option-row">
+                    <label>Support email <input name="supportEmail" value="support@evspeare.com" /></label>
+                    <label>Support phone <input name="supportPhone" value="+91 6289498289" /></label>
+                    <label>Return policy <select name="returnPolicy"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Payment policy <select name="paymentPolicy"><option>Enabled</option><option>Disabled</option></select></label>
+                  </div>
+                </details>
               </form>
             </section>
 
@@ -207,10 +270,33 @@
                 <button type="button" data-save-editor="app">Save</button>
               </div>
               <form class="edit-form" data-editor="app">
-                <label>Store pincode <input name="storePincode" value="700136" /></label>
-                <label>Delivery radius KM <input name="deliveryRadius" type="number" value="25" /></label>
-                <label>COD enabled <select name="codEnabled"><option value="yes">Yes</option><option value="no">No</option></select></label>
-                <label>Online payment <select name="onlinePayment"><option value="yes">Yes</option><option value="no">No</option></select></label>
+                <details open>
+                  <summary>Checkout and delivery</summary>
+                  <div class="option-row">
+                    <label>Store pincode <input name="storePincode" value="700136" /></label>
+                    <label>Delivery radius KM <input name="deliveryRadius" type="number" value="25" /></label>
+                    <label>COD enabled <select name="codEnabled"><option value="yes">Yes</option><option value="no">No</option></select></label>
+                    <label>Online payment <select name="onlinePayment"><option value="yes">Yes</option><option value="no">No</option></select></label>
+                  </div>
+                </details>
+                <details>
+                  <summary>Push notification</summary>
+                  <div class="option-row">
+                    <label>Push status <select name="pushStatus"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Campaign title <input name="pushTitle" value="New EV parts arrived" /></label>
+                    <label>Campaign message <input name="pushMessage" value="Fresh catalog and fast dispatch live now." /></label>
+                    <label>Audience <select name="pushAudience"><option>All customers</option><option>Active customers</option><option>Pending orders</option><option>Pincode wise</option></select></label>
+                  </div>
+                </details>
+                <details>
+                  <summary>App features</summary>
+                  <div class="option-row">
+                    <label>Wishlist <select name="wishlist"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>OTP login <select name="otpLogin"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Order cancel <select name="orderCancel"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Order return <select name="orderReturn"><option>Enabled</option><option>Disabled</option></select></label>
+                  </div>
+                </details>
               </form>
             </section>
 
@@ -223,10 +309,24 @@
                 <button type="button" data-save-editor="picker">Save</button>
               </div>
               <form class="edit-form" data-editor="picker">
-                <label>Default warehouse ID <input name="warehouseId" placeholder="1" /></label>
-                <label>Auto refresh seconds <input name="pickerRefresh" type="number" value="15" /></label>
-                <label>Require bin scan <select name="binScan"><option value="yes">Yes</option><option value="no">No</option></select></label>
-                <label>Require product scan <select name="productScan"><option value="yes">Yes</option><option value="no">No</option></select></label>
+                <details open>
+                  <summary>Picking workflow</summary>
+                  <div class="option-row">
+                    <label>Default warehouse ID <input name="warehouseId" placeholder="1" /></label>
+                    <label>Auto refresh seconds <input name="pickerRefresh" type="number" value="15" /></label>
+                    <label>Require bin scan <select name="binScan"><option value="yes">Yes</option><option value="no">No</option></select></label>
+                    <label>Require product scan <select name="productScan"><option value="yes">Yes</option><option value="no">No</option></select></label>
+                  </div>
+                </details>
+                <details>
+                  <summary>Dispatch and returns</summary>
+                  <div class="option-row">
+                    <label>AWB required <select name="awbRequired"><option>Yes</option><option>No</option></select></label>
+                    <label>Photo proof <select name="photoProof"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Return PV <select name="returnPv"><option>Required</option><option>Optional</option></select></label>
+                    <label>Picker notification <select name="pickerPush"><option>Enabled</option><option>Disabled</option></select></label>
+                  </div>
+                </details>
               </form>
             </section>
 
@@ -239,41 +339,6 @@
               </div>
               <div class="mini-list" id="edit-log"></div>
             </section>
-          </div>
-        </section>
-
-        <section class="page" data-page-panel="settings">
-          <div class="panel">
-            <div class="panel-head">
-              <div>
-                <span>API connection</span>
-                <h2>Live endpoint settings</h2>
-              </div>
-              <button type="button" id="save-config">Save config</button>
-            </div>
-            <form class="settings-grid" id="settings-form">
-              <label>Website URL <input name="websiteUrl" value="https://www.evspeare.shop" /></label>
-              <label>Picker URL <input name="pickerUrl" value="https://evsphere-warehouse-mobile-production.up.railway.app" /></label>
-              <label>Backend API <input name="backendApi" value="https://evsphere-warehouse-backend-production.up.railway.app/api" /></label>
-              <label>Products endpoint <input name="productsEndpoint" value="https://www.evspeare.shop/api/mobile/products" /></label>
-              <label>Orders endpoint <input name="ordersEndpoint" value="https://www.evspeare.shop/api/mobile/orders" /></label>
-              <label>Customers endpoint <input name="customersEndpoint" value="/customers" /></label>
-              <label>Picker orders endpoint <input name="pickerOrdersEndpoint" value="/pick-list" /></label>
-              <label>Returns endpoint <input name="returnsEndpoint" value="/returns/pick-list" /></label>
-              <label>Update endpoint <input name="updateEndpoint" value="/central-panel/update" /></label>
-              <label>Bearer token <input name="token" type="password" placeholder="Admin/picker token" /></label>
-              <label>Warehouse ID <input name="warehouseId" placeholder="Optional" /></label>
-              <label>Auto refresh seconds <input name="autoRefreshSeconds" type="number" min="10" value="30" /></label>
-            </form>
-
-            <div class="login-box">
-              <form class="settings-grid compact" id="login-form">
-                <label>Staff email <input name="email" type="email" autocomplete="username" /></label>
-                <label>Password <input name="password" type="password" autocomplete="current-password" /></label>
-              </form>
-              <button type="button" id="login-api">Login and save token</button>
-              <div class="mini-list" id="login-result"></div>
-            </div>
           </div>
         </section>
       </main>
