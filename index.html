@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EV Speare Central Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="panel-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">EV</span>
+          <div>
+            <strong>EV Speare</strong>
+            <small>Central Command</small>
+          </div>
+        </div>
+
+        <nav class="nav-stack" aria-label="Admin pages">
+          <button class="active" type="button" data-page="overview">Overview</button>
+          <button type="button" data-page="website">Website Pages</button>
+          <button type="button" data-page="customer">Customer App</button>
+          <button type="button" data-page="picker">Picker App</button>
+          <button type="button" data-page="warehouse">Warehouse</button>
+          <button type="button" data-page="integrations">Integrations</button>
+        </nav>
+
+        <div class="sidebar-card">
+          <span>Live Sources</span>
+          <strong id="source-count">0 connected</strong>
+          <button type="button" id="refresh-all">Refresh all data</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <p class="kicker">Operations cockpit</p>
+            <h1 id="page-title">Overview</h1>
+          </div>
+          <div class="top-actions">
+            <a href="https://www.evspeare.shop/" target="_blank" rel="noreferrer">Open App</a>
+            <a href="https://evsphere-warehouse-mobile-production.up.railway.app" target="_blank" rel="noreferrer">Open Picker</a>
+            <a href="https://evsphere-warehouse-backend-production.up.railway.app/users" target="_blank" rel="noreferrer">Warehouse Login</a>
+          </div>
+        </header>
+
+        <section class="hero-band">
+          <div>
+            <span>EV Speare control room</span>
+            <h2>Har website, app aur picker page ka data ek professional central panel mein.</h2>
+            <p>Products, orders, returns, support, stock, movement, dispatch aur backend health ko separate pages mein monitor karein.</p>
+          </div>
+          <div class="hero-metrics">
+            <article><span>Products</span><strong id="hero-products">--</strong></article>
+            <article><span>Orders</span><strong id="hero-orders">--</strong></article>
+            <article><span>Picker Queue</span><strong id="hero-picker">--</strong></article>
+          </div>
+        </section>
+
+        <section class="page active" data-page-panel="overview">
+          <div class="status-grid" id="status-grid"></div>
+          <div class="content-grid">
+            <section class="work-panel wide">
+              <div class="panel-head">
+                <div>
+                  <span>Business pulse</span>
+                  <h2>Live snapshot</h2>
+                </div>
+                <button type="button" data-action="load-products">Sync products</button>
+              </div>
+              <div class="metric-grid" id="metric-grid"></div>
+            </section>
+            <section class="work-panel">
+              <div class="panel-head">
+                <div>
+                  <span>System notes</span>
+                  <h2>Action required</h2>
+                </div>
+              </div>
+              <div class="note-list" id="note-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="page" data-page-panel="website">
+          <div class="section-title">
+            <div>
+              <span>Public website</span>
+              <h2>Website pages data</h2>
+            </div>
+            <button type="button" data-action="load-products">Load website products</button>
+          </div>
+          <div class="page-map" id="website-map"></div>
+          <section class="work-panel">
+            <div class="panel-head">
+              <div>
+                <span>Catalog</span>
+                <h2>Products from website API</h2>
+              </div>
+              <input id="product-search" type="search" placeholder="Search product, SKU, category" />
+            </div>
+            <div class="data-table" id="products-table"></div>
+          </section>
+        </section>
+
+        <section class="page" data-page-panel="customer">
+          <div class="section-title">
+            <div>
+              <span>Customer app</span>
+              <h2>App pages data</h2>
+            </div>
+            <button type="button" data-action="load-orders">Load customer orders</button>
+          </div>
+          <div class="page-map" id="customer-map"></div>
+          <section class="work-panel">
+            <div class="panel-head">
+              <div>
+                <span>Orders</span>
+                <h2>Customer order feed</h2>
+              </div>
+            </div>
+            <div class="data-table" id="orders-table"></div>
+          </section>
+        </section>
+
+        <section class="page" data-page-panel="picker">
+          <div class="section-title">
+            <div>
+              <span>Picker mobile</span>
+              <h2>Picker app pages data</h2>
+            </div>
+            <button type="button" data-action="load-picker">Load picker data</button>
+          </div>
+          <div class="page-map" id="picker-map"></div>
+          <div class="content-grid">
+            <section class="work-panel">
+              <div class="panel-head">
+                <div>
+                  <span>Pick list</span>
+                  <h2>Orders queue</h2>
+                </div>
+              </div>
+              <div class="data-table" id="picker-orders-table"></div>
+            </section>
+            <section class="work-panel">
+              <div class="panel-head">
+                <div>
+                  <span>Returns</span>
+                  <h2>Return queue</h2>
+                </div>
+              </div>
+              <div class="data-table" id="returns-table"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="page" data-page-panel="warehouse">
+          <div class="section-title">
+            <div>
+              <span>Warehouse backend</span>
+              <h2>Admin modules</h2>
+            </div>
+            <a class="button-link" href="https://evsphere-warehouse-backend-production.up.railway.app/users" target="_blank" rel="noreferrer">Open backend admin</a>
+          </div>
+          <div class="page-map" id="warehouse-map"></div>
+          <section class="work-panel">
+            <div class="panel-head">
+              <div>
+                <span>Backend health</span>
+                <h2>API diagnostics</h2>
+              </div>
+              <button type="button" data-action="test-health">Run health check</button>
+            </div>
+            <div class="diagnostic-log" id="diagnostic-log"></div>
+          </section>
+        </section>
+
+        <section class="page" data-page-panel="integrations">
+          <div class="section-title">
+            <div>
+              <span>Settings</span>
+              <h2>API configuration</h2>
+            </div>
+            <button type="button" id="save-config">Save configuration</button>
+          </div>
+          <form class="settings-grid" id="settings-form">
+            <label>
+              Website app URL
+              <input name="websiteUrl" value="https://www.evspeare.shop" />
+            </label>
+            <label>
+              Backend API URL
+              <input name="backendApi" value="https://evsphere-warehouse-backend-production.up.railway.app/api" />
+            </label>
+            <label>
+              Website products endpoint
+              <input name="productsEndpoint" value="https://www.evspeare.shop/api/mobile/products" />
+            </label>
+            <label>
+              Customer orders endpoint
+              <input name="ordersEndpoint" value="https://www.evspeare.shop/api/mobile/orders" />
+            </label>
+            <label>
+              Picker token
+              <input name="pickerToken" type="password" placeholder="Paste picker/admin bearer token" />
+            </label>
+            <label>
+              Warehouse ID
+              <input name="warehouseId" placeholder="Optional" />
+            </label>
+          </form>
+          <section class="work-panel">
+            <div class="panel-head">
+              <div>
+                <span>Token helper</span>
+                <h2>Warehouse login se token lo</h2>
+              </div>
+              <button type="button" id="login-api">Login and save token</button>
+            </div>
+            <form class="settings-grid compact" id="login-form">
+              <label>
+                Staff email
+                <input name="email" type="email" autocomplete="username" placeholder="admin@example.com" />
+              </label>
+              <label>
+                Password
+                <input name="password" type="password" autocomplete="current-password" placeholder="Password" />
+              </label>
+            </form>
+            <div class="diagnostic-log" id="login-result">
+              <article><strong>Ready</strong><p>Email/password dalke token automatically save karein.</p></article>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
