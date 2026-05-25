@@ -279,6 +279,7 @@ function renderAll() {
   renderProducts();
   renderInventory();
   renderCreatedUsers();
+  renderShiprocket();
   renderDashboardLists();
   renderOperations();
   renderEditLog();
@@ -394,7 +395,7 @@ function renderReturns() {
 function renderProducts() {
   const rows = filtered(store.products, "products");
   $("#products-table").innerHTML = rows.length ? rows.slice(0, 300).map((item) => rowHtml("products", item, [
-    [item.name, item.sku || "No SKU"],
+    [imageCell(item), item.sku || "No SKU"],
     [`Rs. ${formatNumber(item.price)}`, item.category || "Catalog"],
     [statusPill(item.stock > 0 ? "active" : "out_of_stock"), "Stock status"],
     [`Stock ${formatNumber(item.stock)}`, "Quantity"],
@@ -406,13 +407,38 @@ function renderProducts() {
 function renderInventory() {
   const rows = filtered(store.inventory, "inventory");
   $("#inventory-table").innerHTML = rows.length ? rows.slice(0, 300).map((item) => rowHtml("products", item, [
-    [item.name, item.sku || "No SKU"],
+    [imageCell(item), item.sku || "No SKU"],
     [item.warehouseId || "-", "Warehouse ID"],
     [item.location || "-", "Location"],
     [`Stock ${formatNumber(item.stock)}`, "Total inventory"],
     [`Rs. ${formatNumber(item.value)}`, "Inventory value"],
   ])).join("") : emptyState("Inventory backend endpoint connect hone ke baad warehouse-wise stock dikhega.", store.errors.inventory);
   populateWarehouseFilter();
+}
+
+function renderShiprocket() {
+  const rows = shiprocketRows();
+  const inTransit = rows.filter((item) => tabMatches(item.status, "shipped")).length;
+  const delivered = rows.filter((item) => tabMatches(item.status, "delivered")).length;
+  const missingAwb = rows.filter((item) => !item.awb).length;
+  const summary = $("#shiprocket-summary");
+  if (summary) {
+    summary.innerHTML = [
+      ["Courier rows", rows.length, "Shiprocket linked orders"],
+      ["In transit", inTransit, "Shipped/dispatch status"],
+      ["Delivered", delivered, "Completed courier rows"],
+      ["Missing AWB", missingAwb, "Needs courier creation"],
+    ].map(([label, value, help]) => `<article class="metric-card blue"><span>${label}</span><strong>${value}</strong><span>${help}</span></article>`).join("");
+  }
+  const table = $("#shiprocket-table");
+  if (!table) return;
+  table.innerHTML = rows.length ? rows.slice(0, 300).map((item) => rowHtml("orders", item, [
+    [item.orderId || item.number, item.createdAt || "No date"],
+    [item.awb || "-", "AWB"],
+    [item.courierProvider || "Shiprocket", `Shipment ${item.courierShipmentId || "-"}`],
+    [statusPill(item.courierStatus || item.status), "Courier status"],
+    [item.customer, item.phone || "Customer"],
+  ])).join("") : emptyState("Shiprocket rows orders/courier endpoint connect hone ke baad dikhenge.");
 }
 
 function renderCreatedUsers() {
@@ -549,8 +575,20 @@ function rowHtml(type, item, cells) {
 
 function safeCell(value) {
   const raw = String(value ?? "");
-  if (raw.startsWith('<mark class="status-pill')) return raw;
+  if (raw.startsWith('<mark class="status-pill') || raw.startsWith('<div class="product-cell')) return raw;
   return escapeHtml(raw);
+}
+
+function imageCell(item) {
+  const src = item.image || "";
+  const image = src ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(item.name || item.sku || "Product")}" loading="lazy" />` : `<span>${escapeHtml((item.name || item.sku || "P").slice(0, 1))}</span>`;
+  return `<div class="product-cell"><div class="product-thumb">${image}</div><strong>${escapeHtml(item.name || "Product")}</strong></div>`;
+}
+
+function shiprocketRows() {
+  return filtered(store.orders, "orders").filter((item) =>
+    item.courierProvider || item.courierOrderId || item.courierShipmentId || item.awb || ["packed", "dispatch", "dispatched", "shipped", "delivered"].includes(String(item.status || "").toLowerCase())
+  );
 }
 
 document.addEventListener("click", (event) => {
@@ -768,6 +806,7 @@ function exportCsv(key) {
     returns: store.returns,
     products: store.products,
     inventory: store.inventory,
+    shiprocket: shiprocketRows(),
   }[key] || [];
   if (!rows.length) {
     toast("Export ke liye rows available nahi hain.");
@@ -804,6 +843,7 @@ function normalizeProduct(item, index = 0) {
     stock: number(item, ["stockQuantity", "stock_quantity", "available_quantity", "quantity", "stock"]),
     warehouseId: text(item, ["warehouseId", "warehouse_id", "warehouse", "warehouse_code"]),
     location: text(item, ["location", "bin", "location_code"]),
+    image: firstImage(item),
     category: text(item, ["category", "category_name"]) || "Catalog",
     source: text(item, ["source"]) || "Website",
   };
@@ -818,6 +858,10 @@ function normalizeOrder(item, index = 0) {
     warehouseId: text(item, ["warehouse_id", "warehouseId", "warehouse", "warehouse_code"]) || text(item.warehouse, ["id", "code", "name"]),
     pickerId: text(item, ["picker_id", "pickerId", "staff_id"]) || text(item.picker, ["id"]),
     awb: text(item, ["awb", "awb_number", "tracking_number", "trackingId"]),
+    courierProvider: text(item, ["courier_provider", "courierProvider"]) || text(item.courier, ["provider"]),
+    courierOrderId: text(item, ["courier_order_id", "courierOrderId"]) || text(item.courier, ["order_id"]),
+    courierShipmentId: text(item, ["courier_shipment_id", "courierShipmentId"]) || text(item.courier, ["shipment_id"]),
+    courierStatus: text(item, ["courier_status", "courierStatus"]) || text(item.courier, ["status"]),
     pincode: text(item, ["pincode", "pin", "postal_code"]) || text(item.address, ["pincode", "pin"]),
     location: text(item, ["location", "city", "area"]) || text(item.address, ["city", "area", "full"]),
     customer: text(item, ["customer_name", "name"]) || text(item.customer, ["name"]) || "Customer",
@@ -894,9 +938,31 @@ function normalizeInventory(item, index = 0) {
     sku: text(product, ["sku", "barcode", "ean"]),
     warehouseId: text(item, ["warehouse_id", "warehouseId", "warehouse", "warehouse_code"]) || text(item.warehouse, ["id", "code", "name"]),
     location: text(item, ["location", "location_code", "full_code", "barcode", "bin"]) || text(item.location, ["full_code", "barcode", "code"]),
+    image: firstImage(product),
     stock,
     value: stock * price,
   };
+}
+
+function firstImage(item) {
+  if (!item || typeof item !== "object") return "";
+  const direct = text(item, ["image", "image_url", "imageUrl", "featured_image", "featuredImage"]);
+  if (direct) return resolveMediaUrl(direct);
+  const images = Array.isArray(item.images) ? item.images : [];
+  if (!images.length) return "";
+  const first = images[0];
+  return resolveMediaUrl(typeof first === "string" ? first : text(first, ["src", "url", "image"]));
+}
+
+function resolveMediaUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw || raw.startsWith("gs://")) return "";
+  if (/^(https?:|data:|blob:)/i.test(raw)) return raw;
+  try {
+    return new URL(raw, store.config.websiteUrl || window.location.origin).href;
+  } catch {
+    return raw;
+  }
 }
 
 function asArray(payload) {

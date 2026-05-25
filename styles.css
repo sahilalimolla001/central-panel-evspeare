@@ -294,7 +294,8 @@ select {
 .metric-grid,
 .live-grid,
 .editor-grid,
-.settings-grid {
+.settings-grid,
+.shiprocket-summary {
   display: grid;
   gap: 12px;
 }
@@ -321,6 +322,10 @@ select {
 
 .settings-grid.compact {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.shiprocket-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .panel,
@@ -431,6 +436,33 @@ select {
 .row-cell strong,
 .row-cell small {
   display: block;
+}
+
+.product-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.product-thumb {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--teal);
+  font-weight: 900;
+}
+
+.product-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .row-actions {
@@ -680,6 +712,7 @@ summary {
   .metric-grid,
   .live-grid,
   .settings-grid,
+  .shiprocket-summary,
   .option-row,
   .permission-grid,
   .tracking-card {
@@ -710,6 +743,7 @@ summary {
   .editor-grid,
   .settings-grid,
   .settings-grid.compact,
+  .shiprocket-summary,
   .option-row,
   .permission-grid,
   .tracking-search,

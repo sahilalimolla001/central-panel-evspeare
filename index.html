@@ -41,6 +41,7 @@
           <button type="button" data-page="returns">Returns</button>
           <button type="button" data-page="inventory">Inventory</button>
           <button type="button" data-page="user-create">User Creating</button>
+          <button type="button" data-page="shiprocket">Shiprocket</button>
           <button type="button" data-page="catalog">Catalog</button>
           <button type="button" data-page="tracking">Order Tracking</button>
           <button type="button" data-page="content">Website/App Edit</button>
@@ -267,6 +268,23 @@
           </div>
         </section>
 
+        <section class="page" data-page-panel="shiprocket">
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <span>Courier command</span>
+                <h2>Shiprocket orders, AWB and courier status</h2>
+              </div>
+              <div class="button-row">
+                <button type="button" data-export="shiprocket">Export CSV</button>
+                <button type="button" data-action="load-orders">Refresh courier</button>
+              </div>
+            </div>
+            <div class="shiprocket-summary" id="shiprocket-summary"></div>
+            <div class="data-table" id="shiprocket-table"></div>
+          </div>
+        </section>
+
         <section class="page" data-page-panel="user-create">
           <div class="editor-grid">
             <section class="panel">
@@ -373,7 +391,7 @@
                   <div class="option-row">
                     <label>Support email <input name="supportEmail" value="support@evspeare.com" /></label>
                     <label>Support phone <input name="supportPhone" value="+91 6289498289" /></label>
-                    <label>Return policy <select name="returnPolicy"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Customer return visible <select name="customerReturnVisible"><option>Hidden</option><option>Visible</option></select></label>
                     <label>Payment policy <select name="paymentPolicy"><option>Enabled</option><option>Disabled</option></select></label>
                   </div>
                 </details>
@@ -431,7 +449,16 @@
                     <label>Wishlist <select name="wishlist"><option>Enabled</option><option>Disabled</option></select></label>
                     <label>OTP login <select name="otpLogin"><option>Enabled</option><option>Disabled</option></select></label>
                     <label>Order cancel <select name="orderCancel"><option>Enabled</option><option>Disabled</option></select></label>
-                    <label>Order return <select name="orderReturn"><option>Enabled</option><option>Disabled</option></select></label>
+                    <label>Order return <select name="orderReturn"><option>Disabled</option><option>Enabled</option></select></label>
+                  </div>
+                </details>
+                <details>
+                  <summary>Quick commerce features</summary>
+                  <div class="option-row">
+                    <label>Express ETA <select name="expressEta"><option>10-20 min</option><option>30-60 min</option><option>Same day</option></select></label>
+                    <label>Substitution approval <select name="substitutionApproval"><option>Customer approval</option><option>Auto best match</option><option>Disabled</option></select></label>
+                    <label>Dark store stock <select name="darkStoreStock"><option>Warehouse wise</option><option>Nearest pincode</option><option>All stock</option></select></label>
+                    <label>Live map tracking <select name="liveMapTracking"><option>Enabled</option><option>Disabled</option></select></label>
                   </div>
                 </details>
               </form>
