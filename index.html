@@ -22,9 +22,12 @@
 
         <nav class="nav-stack" aria-label="Admin pages">
           <button class="active" type="button" data-page="overview">Overview</button>
-          <button type="button" data-page="website">Website Pages</button>
-          <button type="button" data-page="customer">Customer App</button>
+          <button type="button" data-page="products">Products</button>
+          <button type="button" data-page="orders">Orders</button>
+          <button type="button" data-page="customers">Customers</button>
           <button type="button" data-page="picker">Picker App</button>
+          <button type="button" data-page="returns">Returns</button>
+          <button type="button" data-page="inventory">Inventory</button>
           <button type="button" data-page="warehouse">Warehouse</button>
           <button type="button" data-page="integrations">Integrations</button>
         </nav>
@@ -58,7 +61,7 @@
           <div class="hero-metrics">
             <article><span>Products</span><strong id="hero-products">--</strong></article>
             <article><span>Orders</span><strong id="hero-orders">--</strong></article>
-            <article><span>Picker Queue</span><strong id="hero-picker">--</strong></article>
+            <article><span>Live Modules</span><strong id="hero-modules">--</strong></article>
           </div>
         </section>
 
@@ -71,7 +74,7 @@
                   <span>Business pulse</span>
                   <h2>Live snapshot</h2>
                 </div>
-                <button type="button" data-action="load-products">Sync products</button>
+                <button type="button" data-action="refresh-all">Sync live data</button>
               </div>
               <div class="metric-grid" id="metric-grid"></div>
             </section>
@@ -85,22 +88,31 @@
               <div class="note-list" id="note-list"></div>
             </section>
           </div>
-        </section>
-
-        <section class="page" data-page-panel="website">
-          <div class="section-title">
-            <div>
-              <span>Public website</span>
-              <h2>Website pages data</h2>
-            </div>
-            <button type="button" data-action="load-products">Load website products</button>
-          </div>
-          <div class="page-map" id="website-map"></div>
           <section class="work-panel">
             <div class="panel-head">
               <div>
-                <span>Catalog</span>
-                <h2>Products from website API</h2>
+                <span>Main panel</span>
+                <h2>All live panels</h2>
+              </div>
+            </div>
+            <div class="module-grid" id="module-grid"></div>
+          </section>
+        </section>
+
+        <section class="page" data-page-panel="products">
+          <div class="section-title">
+            <div>
+              <span>Catalog control</span>
+              <h2>Products live panel</h2>
+            </div>
+            <button type="button" data-action="load-products">Refresh products</button>
+          </div>
+          <div class="page-map" id="products-summary"></div>
+          <section class="work-panel">
+            <div class="panel-head">
+              <div>
+                <span>Website catalog</span>
+                <h2>Product rows</h2>
               </div>
               <input id="product-search" type="search" placeholder="Search product, SKU, category" />
             </div>
@@ -108,23 +120,43 @@
           </section>
         </section>
 
-        <section class="page" data-page-panel="customer">
+        <section class="page" data-page-panel="orders">
           <div class="section-title">
             <div>
-              <span>Customer app</span>
-              <h2>App pages data</h2>
+              <span>Order command</span>
+              <h2>Orders live panel</h2>
             </div>
-            <button type="button" data-action="load-orders">Load customer orders</button>
+            <button type="button" data-action="load-orders">Refresh orders</button>
           </div>
-          <div class="page-map" id="customer-map"></div>
+          <div class="page-map" id="orders-summary"></div>
           <section class="work-panel">
             <div class="panel-head">
               <div>
-                <span>Orders</span>
-                <h2>Customer order feed</h2>
+                <span>Customer app</span>
+                <h2>Order rows</h2>
               </div>
             </div>
             <div class="data-table" id="orders-table"></div>
+          </section>
+        </section>
+
+        <section class="page" data-page-panel="customers">
+          <div class="section-title">
+            <div>
+              <span>Customer intelligence</span>
+              <h2>Customers live panel</h2>
+            </div>
+            <button type="button" data-action="load-customers">Refresh customers</button>
+          </div>
+          <div class="page-map" id="customers-summary"></div>
+          <section class="work-panel">
+            <div class="panel-head">
+              <div>
+                <span>Users</span>
+                <h2>Customer rows</h2>
+              </div>
+            </div>
+            <div class="data-table" id="customers-table"></div>
           </section>
         </section>
 
@@ -159,6 +191,57 @@
           </div>
         </section>
 
+        <section class="page" data-page-panel="returns">
+          <div class="section-title">
+            <div>
+              <span>Reverse logistics</span>
+              <h2>Returns live panel</h2>
+            </div>
+            <button type="button" data-action="load-returns">Refresh returns</button>
+          </div>
+          <div class="page-map" id="returns-summary"></div>
+          <section class="work-panel">
+            <div class="panel-head">
+              <div>
+                <span>Approved returns</span>
+                <h2>Return rows</h2>
+              </div>
+            </div>
+            <div class="data-table" id="returns-full-table"></div>
+          </section>
+        </section>
+
+        <section class="page" data-page-panel="inventory">
+          <div class="section-title">
+            <div>
+              <span>Warehouse stock</span>
+              <h2>Inventory live panel</h2>
+            </div>
+            <button type="button" data-action="load-inventory">Refresh inventory</button>
+          </div>
+          <div class="page-map" id="inventory-summary"></div>
+          <div class="content-grid">
+            <section class="work-panel">
+              <div class="panel-head">
+                <div>
+                  <span>Stock view</span>
+                  <h2>Inventory rows</h2>
+                </div>
+              </div>
+              <div class="data-table" id="inventory-table"></div>
+            </section>
+            <section class="work-panel">
+              <div class="panel-head">
+                <div>
+                  <span>Movement</span>
+                  <h2>Stock actions</h2>
+                </div>
+              </div>
+              <div class="note-list" id="inventory-actions"></div>
+            </section>
+          </div>
+        </section>
+
         <section class="page" data-page-panel="warehouse">
           <div class="section-title">
             <div>
@@ -168,6 +251,26 @@
             <a class="button-link" href="https://evsphere-warehouse-backend-production.up.railway.app/users" target="_blank" rel="noreferrer">Open backend admin</a>
           </div>
           <div class="page-map" id="warehouse-map"></div>
+          <div class="content-grid">
+            <section class="work-panel">
+              <div class="panel-head">
+                <div>
+                  <span>Backend modules</span>
+                  <h2>Warehouse rows</h2>
+                </div>
+              </div>
+              <div class="data-table" id="warehouse-table"></div>
+            </section>
+            <section class="work-panel">
+              <div class="panel-head">
+                <div>
+                  <span>Service map</span>
+                  <h2>Connected apps</h2>
+                </div>
+              </div>
+              <div class="note-list" id="service-map"></div>
+            </section>
+          </div>
           <section class="work-panel">
             <div class="panel-head">
               <div>
@@ -194,6 +297,10 @@
               <input name="websiteUrl" value="https://www.evspeare.shop" />
             </label>
             <label>
+              Picker app URL
+              <input name="pickerUrl" value="https://evsphere-warehouse-mobile-production.up.railway.app" />
+            </label>
+            <label>
               Backend API URL
               <input name="backendApi" value="https://evsphere-warehouse-backend-production.up.railway.app/api" />
             </label>
@@ -206,12 +313,36 @@
               <input name="ordersEndpoint" value="https://www.evspeare.shop/api/mobile/orders" />
             </label>
             <label>
+              Customers endpoint
+              <input name="customersEndpoint" value="/customers" />
+            </label>
+            <label>
+              Picker orders endpoint
+              <input name="pickerOrdersEndpoint" value="/pick-list" />
+            </label>
+            <label>
+              Returns endpoint
+              <input name="returnsEndpoint" value="/returns/pick-list" />
+            </label>
+            <label>
+              Inventory endpoint
+              <input name="inventoryEndpoint" value="/inventory" />
+            </label>
+            <label>
+              Dashboard endpoint
+              <input name="dashboardEndpoint" value="/dashboard" />
+            </label>
+            <label>
               Picker token
               <input name="pickerToken" type="password" placeholder="Paste picker/admin bearer token" />
             </label>
             <label>
               Warehouse ID
               <input name="warehouseId" placeholder="Optional" />
+            </label>
+            <label>
+              Auto refresh seconds
+              <input name="autoRefreshSeconds" type="number" min="10" value="30" />
             </label>
           </form>
           <section class="work-panel">
