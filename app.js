@@ -22,6 +22,7 @@ const store = {
   pickerOrders: [],
   returns: [],
   inventory: [],
+  createdUsers: [],
   activeTab: "all",
   editing: null,
   errors: {},
@@ -63,6 +64,8 @@ function bindActions() {
   $("#global-search").addEventListener("input", renderAll);
   $("#warehouse-filter").addEventListener("change", renderAll);
   $("#tracking-form").addEventListener("submit", trackOrder);
+  $("#create-user").addEventListener("click", createAccessUser);
+  $("#refresh-created-users").addEventListener("click", loadCreatedUsers);
   $("#close-drawer").addEventListener("click", closeDrawer);
   $("#save-record").addEventListener("click", saveRecord);
   $$("[data-action='load-products']").forEach((button) => button.addEventListener("click", loadProducts));
@@ -127,6 +130,7 @@ async function refreshAll() {
   setSyncState("Syncing");
   await Promise.allSettled([loadProducts(), loadOrders(), loadCustomers(), loadPicker(), loadReturns()]);
   await loadInventory();
+  await loadCreatedUsers();
   store.lastSync = new Date();
   setSyncState(Object.keys(store.errors).length ? "Partial" : "Live");
   renderAll();
@@ -178,6 +182,18 @@ async function loadInventory() {
     }));
   }
   renderAll();
+}
+
+async function loadCreatedUsers() {
+  try {
+    const payload = await apiGet("/central-panel/users");
+    store.createdUsers = asArray(payload).map(normalizeAccessUser);
+    delete store.errors.createdUsers;
+  } catch (error) {
+    store.createdUsers = loadLocalUsers();
+    store.errors.createdUsers = `${error.message}. Backend user-create endpoint ready nahi hai, local draft dikh raha hai.`;
+  }
+  renderCreatedUsers();
 }
 
 async function loadRows(key, endpoint, normalizer, fallback = []) {
@@ -243,6 +259,7 @@ function renderAll() {
   renderReturns();
   renderProducts();
   renderInventory();
+  renderCreatedUsers();
   renderDashboardLists();
   renderEditLog();
 }
@@ -376,6 +393,18 @@ function renderInventory() {
     [`Rs. ${formatNumber(item.value)}`, "Inventory value"],
   ])).join("") : emptyState("Inventory backend endpoint connect hone ke baad warehouse-wise stock dikhega.", store.errors.inventory);
   populateWarehouseFilter();
+}
+
+function renderCreatedUsers() {
+  const node = $("#created-users-table");
+  if (!node) return;
+  node.innerHTML = store.createdUsers.length ? store.createdUsers.map((item) => rowHtml("accessUsers", item, [
+    [item.userId, item.name || "No name"],
+    [statusPill(item.role), "Role"],
+    [item.warehouseId || "-", "Warehouse ID"],
+    [statusPill(item.status), "Status"],
+    [(item.permissions || []).join(", ") || "-", "Permissions"],
+  ])).join("") : emptyState("Abhi koi admin/picker user create nahi hua.");
 }
 
 function renderDashboardLists() {
@@ -521,6 +550,34 @@ async function saveEditor(section) {
   renderEditLog();
 }
 
+async function createAccessUser() {
+  const form = $("#user-create-form");
+  const formData = new FormData(form);
+  const data = Object.fromEntries(formData.entries());
+  data.permissions = formData.getAll("permissions");
+  if (!data.userId || !data.password || !data.warehouseId) {
+    toast("User ID, password aur warehouse ID required hai.");
+    return;
+  }
+  if (data.password !== data.confirmPassword) {
+    toast("Password aur confirm password match nahi kar raha.");
+    return;
+  }
+  delete data.confirmPassword;
+  const user = normalizeAccessUser({ ...data, id: data.userId, createdAt: new Date().toISOString() });
+  try {
+    await apiPost("/central-panel/users", user);
+    toast("User backend me create ho gaya.");
+  } catch {
+    const users = loadLocalUsers().filter((item) => item.userId !== user.userId);
+    users.unshift(user);
+    localStorage.setItem("evspeareAccessUsers", JSON.stringify(users));
+    toast("Backend endpoint ready nahi hai. User local draft me save ho gaya.");
+  }
+  form.reset();
+  await loadCreatedUsers();
+}
+
 function editableFields(type, item) {
   const common = {
     orders: [["status", "Status", item.status], ["orderId", "Order ID", item.orderId], ["customerId", "Customer ID", item.customerId], ["warehouseId", "Warehouse ID", item.warehouseId], ["pickerId", "Picker ID", item.pickerId], ["awb", "AWB", item.awb], ["pincode", "Pincode", item.pincode], ["location", "Location", item.location], ["customer", "Customer", item.customer], ["phone", "Phone", item.phone], ["address", "Address", item.address], ["total", "Total", item.total]],
@@ -539,6 +596,7 @@ function collectionFor(type) {
     pickers: store.pickerOrders,
     returns: store.returns,
     products: store.products,
+    accessUsers: store.createdUsers,
   }[type] || [];
 }
 
@@ -718,6 +776,20 @@ function normalizeReturn(item, index = 0) {
   };
 }
 
+function normalizeAccessUser(item, index = 0) {
+  return {
+    id: String(item.id || item.userId || item.email || index),
+    userId: text(item, ["userId", "email", "username", "id"]) || `user-${index + 1}`,
+    name: text(item, ["name", "full_name"]),
+    phone: text(item, ["phone", "mobile"]),
+    role: text(item, ["role", "type"]) || "picker",
+    warehouseId: text(item, ["warehouseId", "warehouse_id", "warehouse", "warehouse_code"]),
+    status: text(item, ["status"]) || "active",
+    permissions: Array.isArray(item.permissions) ? item.permissions : String(item.permissions || "").split(",").map((value) => value.trim()).filter(Boolean),
+    createdAt: text(item, ["createdAt", "created_at"]),
+  };
+}
+
 function normalizeInventory(item, index = 0) {
   const product = item.product || item;
   const stock = number(item, ["available_quantity", "available", "stock", "quantity", "qty"]) || number(product, ["stockQuantity", "stock_quantity", "stock"]);
@@ -813,6 +885,14 @@ function loadConfig() {
     return { ...defaults, ...JSON.parse(localStorage.getItem("evspeareLiveAdminConfig") || "{}") };
   } catch {
     return { ...defaults };
+  }
+}
+
+function loadLocalUsers() {
+  try {
+    return JSON.parse(localStorage.getItem("evspeareAccessUsers") || "[]").map(normalizeAccessUser);
+  } catch {
+    return [];
   }
 }
 

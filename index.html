@@ -40,6 +40,7 @@
           <button type="button" data-page="pickers">Pickers</button>
           <button type="button" data-page="returns">Returns</button>
           <button type="button" data-page="inventory">Inventory</button>
+          <button type="button" data-page="user-create">User Creating</button>
           <button type="button" data-page="catalog">Catalog</button>
           <button type="button" data-page="tracking">Order Tracking</button>
           <button type="button" data-page="content">Website/App Edit</button>
@@ -226,6 +227,87 @@
               <button type="button" data-action="load-inventory">Refresh inventory</button>
             </div>
             <div class="data-table" id="inventory-table"></div>
+          </div>
+        </section>
+
+        <section class="page" data-page-panel="user-create">
+          <div class="editor-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>Access control</span>
+                  <h2>Create admin / picker user</h2>
+                </div>
+                <button type="button" id="create-user">Create user</button>
+              </div>
+              <form class="edit-form" id="user-create-form">
+                <div class="option-row">
+                  <label>
+                    User type
+                    <select name="role" required>
+                      <option value="admin">Admin</option>
+                      <option value="manager">Warehouse Manager</option>
+                      <option value="picker">Picker</option>
+                    </select>
+                  </label>
+                  <label>
+                    User ID / Email
+                    <input name="userId" type="text" autocomplete="username" placeholder="picker01@evspeare.com" required />
+                  </label>
+                  <label>
+                    Password
+                    <input name="password" type="password" autocomplete="new-password" required />
+                  </label>
+                  <label>
+                    Confirm password
+                    <input name="confirmPassword" type="password" autocomplete="new-password" required />
+                  </label>
+                </div>
+                <div class="option-row">
+                  <label>
+                    Full name
+                    <input name="name" placeholder="Staff name" />
+                  </label>
+                  <label>
+                    Phone
+                    <input name="phone" inputmode="tel" placeholder="10 digit mobile" />
+                  </label>
+                  <label>
+                    Warehouse ID
+                    <input name="warehouseId" placeholder="WH-001" required />
+                  </label>
+                  <label>
+                    Status
+                    <select name="status">
+                      <option value="active">Active</option>
+                      <option value="blocked">Blocked</option>
+                    </select>
+                  </label>
+                </div>
+                <details open>
+                  <summary>Permissions</summary>
+                  <div class="permission-grid">
+                    <label><input name="permissions" type="checkbox" value="orders" checked /> Orders</label>
+                    <label><input name="permissions" type="checkbox" value="picking" checked /> Picking</label>
+                    <label><input name="permissions" type="checkbox" value="dispatch" checked /> Dispatch</label>
+                    <label><input name="permissions" type="checkbox" value="returns" /> Returns</label>
+                    <label><input name="permissions" type="checkbox" value="inventory" /> Inventory</label>
+                    <label><input name="permissions" type="checkbox" value="settings" /> Settings</label>
+                  </div>
+                </details>
+              </form>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>Created users</span>
+                  <h2>Admin and picker access rows</h2>
+                </div>
+                <button type="button" id="refresh-created-users">Refresh</button>
+              </div>
+              <div class="data-table" id="created-users-table"></div>
+            </section>
           </div>
         </section>
 
