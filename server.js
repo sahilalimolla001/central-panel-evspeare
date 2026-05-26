@@ -8,7 +8,6 @@ const host = process.env.HOST || "0.0.0.0";
 const root = __dirname;
 const dataDir = path.join(root, "data");
 const dbPath = path.join(dataDir, "db.json");
-const sessions = new Map();
 const staffSessions = new Map();
 
 const config = {
@@ -26,6 +25,8 @@ const config = {
 
 const adminId = process.env.CENTRAL_ADMIN_ID || "admin";
 const adminPassword = process.env.CENTRAL_ADMIN_PASSWORD || "admin123";
+const adminSessionSecret = process.env.ADMIN_SESSION_SECRET || `${adminId}:${adminPassword}`;
+const adminSessionTtlMs = Number(process.env.ADMIN_SESSION_TTL_MS || 7 * 24 * 60 * 60 * 1000);
 const backendToken = process.env.BACKEND_BEARER_TOKEN || process.env.WAREHOUSE_API_TOKEN || process.env.INTEGRATION_API_KEY || "";
 const warehouseId = process.env.WAREHOUSE_ID || "";
 
@@ -70,8 +71,7 @@ async function handleAdminApi(request, response, requestUrl) {
       sendJson(response, 401, { ok: false, message: "Invalid admin ID or password" });
       return;
     }
-    const token = crypto.randomBytes(32).toString("hex");
-    sessions.set(token, { createdAt: Date.now() });
+    const token = createAdminToken();
     sendJson(response, 200, { ok: true, token });
     return;
   }
@@ -306,7 +306,35 @@ function serveStatic(requestUrl, response) {
 function isAuthorized(request) {
   const auth = request.headers.authorization || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-  return Boolean(token && sessions.has(token));
+  return verifyAdminToken(token);
+}
+
+function createAdminToken() {
+  const payload = Buffer.from(JSON.stringify({
+    scope: "admin",
+    expiresAt: Date.now() + adminSessionTtlMs,
+    nonce: crypto.randomBytes(16).toString("hex"),
+  })).toString("base64url");
+  return `${payload}.${adminTokenSignature(payload)}`;
+}
+
+function verifyAdminToken(token) {
+  const [payload, suppliedSignature] = String(token || "").split(".");
+  if (!payload || !suppliedSignature) return false;
+  const expectedSignature = adminTokenSignature(payload);
+  const supplied = Buffer.from(suppliedSignature);
+  const expected = Buffer.from(expectedSignature);
+  if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) return false;
+  try {
+    const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    return data.scope === "admin" && Number(data.expiresAt) > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function adminTokenSignature(payload) {
+  return crypto.createHmac("sha256", adminSessionSecret).update(payload).digest("base64url");
 }
 
 function buildUser(body) {

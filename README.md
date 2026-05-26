@@ -26,6 +26,8 @@ Set these environment variables in your hosting provider:
 
 - `CENTRAL_ADMIN_ID`
 - `CENTRAL_ADMIN_PASSWORD`
+- `ADMIN_SESSION_SECRET` recommended stable secret so admin login stays valid across restarts
+- `ADMIN_SESSION_TTL_MS` optional session duration in milliseconds, default 7 days
 - `BACKEND_API_URL`
 - `BACKEND_BEARER_TOKEN` if protected backend endpoints need a token
 - `WAREHOUSE_ID` optional default warehouse

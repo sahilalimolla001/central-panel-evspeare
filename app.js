@@ -33,13 +33,18 @@ const store = {
 
 const statuses = ["all", "pending", "shipped", "delivered", "cancel", "return"];
 const accessPermissions = [
-  ["dashboard", "Dashboard"], ["products", "Products"], ["suppliers", "Suppliers"], ["stock_in", "Stock In"],
-  ["stock_out", "Stock Out"], ["inventory", "Inventory"], ["locations", "Locations"], ["orders", "Orders"],
-  ["picker_ops", "Picker Ops"], ["pick_transfer", "Pick Transfer"], ["shiprocket", "Shiprocket"],
+  ["dashboard", "Dashboard / Home"], ["products", "Products"], ["suppliers", "Suppliers"], ["stock_in", "Stock In"],
+  ["stock_out", "Stock Out"], ["inventory", "Inventory / Bins / Stock Take"], ["locations", "Locations / Move Stock"], ["orders", "Orders / Pick"],
+  ["picker_ops", "Picker Ops / Tools"], ["pick_transfer", "Pick Transfer"], ["shiprocket", "Ship / Dispatch"],
   ["shipping_status", "Shipping Status"], ["returns", "Returns"], ["refunds", "Payment Refunds"],
   ["money_tracking", "Money Tracking"], ["invoices", "Invoices"], ["reports", "Reports"], ["users", "Users"],
   ["ops_config", "Ops Config"], ["settings", "Settings"],
 ];
+const rolePermissionPresets = {
+  admin: accessPermissions.map(([value]) => value),
+  manager: ["dashboard", "products", "suppliers", "stock_in", "stock_out", "inventory", "locations", "orders", "picker_ops", "pick_transfer", "shiprocket", "shipping_status", "returns", "refunds", "money_tracking", "invoices", "reports"],
+  picker: ["dashboard", "orders", "picker_ops", "pick_transfer", "shiprocket", "shipping_status", "returns", "stock_in", "inventory", "locations"],
+};
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
@@ -67,6 +72,7 @@ function bindNavigation() {
 }
 
 function bindActions() {
+  const userCreateForm = $("#user-create-form");
   $("#refresh-all").addEventListener("click", refreshAll);
   $("#apply-filter").addEventListener("click", renderAll);
   $("#clear-filter").addEventListener("click", clearFilters);
@@ -78,6 +84,13 @@ function bindActions() {
   $("#close-drawer").addEventListener("click", closeDrawer);
   $("#save-record").addEventListener("click", saveRecord);
   $("#delete-record").addEventListener("click", deleteAccessUser);
+  userCreateForm.elements.role.addEventListener("change", (event) => applyRolePermissions(userCreateForm, event.target.value));
+  applyRolePermissions(userCreateForm, userCreateForm.elements.role.value);
+  $("#record-form").addEventListener("change", (event) => {
+    if (event.target.name === "role" && store.editing?.type === "accessUsers") {
+      applyRolePermissions(event.currentTarget, event.target.value);
+    }
+  });
   $$("[data-action='load-products']").forEach((button) => button.addEventListener("click", loadProducts));
   $$("[data-action='load-orders']").forEach((button) => button.addEventListener("click", loadOrders));
   $$("[data-action='load-customers']").forEach((button) => button.addEventListener("click", loadCustomers));
@@ -656,6 +669,7 @@ function openDrawer(type, id) {
   $("#record-form").innerHTML = type === "accessUsers" ? accessUserEditorHtml(item) : editableFields(type, item).map(([name, label, value]) => `
     <label>${escapeHtml(label)}<input name="${escapeHtml(name)}" value="${escapeHtml(value)}" /></label>
   `).join("");
+  if (type === "accessUsers") filterRolePermissionOptions($("#record-form"), item.role);
   $("#delete-record").hidden = type !== "accessUsers";
   $("#edit-drawer").classList.add("open");
   $("#edit-drawer").setAttribute("aria-hidden", "false");
@@ -763,6 +777,7 @@ async function createAccessUser() {
     return;
   }
   form.reset();
+  applyRolePermissions(form, form.elements.role.value);
   populateWarehouseFilter();
   await loadCreatedUsers();
 }
@@ -818,6 +833,21 @@ function accessUserEditorHtml(item) {
       </div>
     </details>
   `;
+}
+
+function applyRolePermissions(form, role) {
+  const permitted = new Set(rolePermissionPresets[role] || []);
+  form.querySelectorAll('input[name="permissions"]').forEach((checkbox) => {
+    checkbox.checked = permitted.has(checkbox.value);
+  });
+  filterRolePermissionOptions(form, role);
+}
+
+function filterRolePermissionOptions(form, role) {
+  const permitted = new Set(rolePermissionPresets[role] || []);
+  form.querySelectorAll('input[name="permissions"]').forEach((checkbox) => {
+    checkbox.closest("label").hidden = !permitted.has(checkbox.value);
+  });
 }
 
 function collectionFor(type) {
