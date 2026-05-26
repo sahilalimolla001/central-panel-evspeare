@@ -365,6 +365,15 @@ select {
   border-color: #c6d3e1;
 }
 
+.access-denied-panel {
+  max-width: 560px;
+  padding: 28px;
+}
+
+.access-denied-panel h2 {
+  margin-top: 6px;
+}
+
 .metric-card {
   padding: 14px;
   min-height: 118px;

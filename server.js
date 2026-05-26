@@ -67,26 +67,38 @@ http.createServer(async (request, response) => {
 async function handleAdminApi(request, response, requestUrl) {
   if (requestUrl.pathname === "/api/admin/login" && request.method === "POST") {
     const body = await readJson(request);
-    if (String(body.adminId || body.email || "").trim() !== adminId || String(body.password || "") !== adminPassword) {
+    const loginId = String(body.adminId || body.email || "").trim();
+    let admin = null;
+    if (loginId === adminId && String(body.password || "") === adminPassword) {
+      admin = { userId: adminId, permissions: ["*"] };
+    } else {
+      admin = await authenticateManagedAdmin(loginId, String(body.password || ""));
+    }
+    if (!admin) {
       sendJson(response, 401, { ok: false, message: "Invalid admin ID or password" });
       return;
     }
-    const token = createAdminToken();
-    sendJson(response, 200, { ok: true, token });
+    const token = createAdminToken(admin);
+    sendJson(response, 200, { ok: true, token, permissions: admin.permissions });
     return;
   }
 
-  if (!isAuthorized(request)) {
+  const admin = authorizedAdmin(request);
+  if (!admin) {
     sendJson(response, 401, { ok: false, message: "Admin login required" });
     return;
   }
 
   if (requestUrl.pathname === "/api/admin/config") {
-    sendJson(response, 200, { ok: true, config });
+    sendJson(response, 200, { ok: true, config, permissions: admin.permissions });
     return;
   }
 
   if (requestUrl.pathname === "/api/admin/users") {
+    if (!adminCanOpen(admin, "user-create")) {
+      sendJson(response, 403, { ok: false, message: "You are not allowed to access this page." });
+      return;
+    }
     await handleUsersApi(request, response);
     return;
   }
@@ -231,6 +243,26 @@ async function proxyCentralPath(request, path) {
   };
 }
 
+async function authenticateManagedAdmin(loginId, password) {
+  if (!loginId || !password) return null;
+  try {
+    const upstream = await fetch(`${config.backendApi}/login`, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({ email: loginId, password }),
+    });
+    const data = await upstream.json().catch(() => ({}));
+    if (upstream.ok && data.user?.role === "admin") {
+      return { userId: data.user.email || loginId, permissions: data.user.permissions || [] };
+    }
+  } catch {
+    // Local built-in users remain available if the warehouse backend is offline.
+  }
+  const user = readDb().users.find((item) => item.userId.toLowerCase() === loginId.toLowerCase() && item.role === "admin" && item.status !== "blocked");
+  if (!user || hashPassword(password, user.salt) !== user.passwordHash) return null;
+  return { userId: user.userId, permissions: Array.isArray(user.permissions) ? user.permissions : [] };
+}
+
 async function handleStaffLogin(request, response) {
   const body = await readJson(request);
   const login = String(body.email || body.userId || "").trim().toLowerCase();
@@ -303,15 +335,21 @@ function serveStatic(requestUrl, response) {
   });
 }
 
-function isAuthorized(request) {
+function authorizedAdmin(request) {
   const auth = request.headers.authorization || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   return verifyAdminToken(token);
 }
 
-function createAdminToken() {
+function adminCanOpen(admin, page) {
+  return admin.permissions.includes("*") || admin.permissions.includes(`panel_${String(page).replaceAll("-", "_")}`);
+}
+
+function createAdminToken(admin = { userId: adminId, permissions: ["*"] }) {
   const payload = Buffer.from(JSON.stringify({
     scope: "admin",
+    userId: admin.userId,
+    permissions: admin.permissions,
     expiresAt: Date.now() + adminSessionTtlMs,
     nonce: crypto.randomBytes(16).toString("hex"),
   })).toString("base64url");
@@ -327,9 +365,10 @@ function verifyAdminToken(token) {
   if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) return false;
   try {
     const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
-    return data.scope === "admin" && Number(data.expiresAt) > Date.now();
+    if (data.scope !== "admin" || Number(data.expiresAt) <= Date.now()) return null;
+    return { userId: data.userId || adminId, permissions: Array.isArray(data.permissions) ? data.permissions : ["*"] };
   } catch {
-    return false;
+    return null;
   }
 }
 

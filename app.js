@@ -29,21 +29,35 @@ const store = {
   errors: {},
   lastSync: null,
   timer: null,
+  adminPermissions: [],
 };
 
 const statuses = ["all", "pending", "shipped", "delivered", "cancel", "return"];
-const accessPermissions = [
-  ["dashboard", "Dashboard / Home"], ["products", "Products"], ["suppliers", "Suppliers"], ["stock_in", "Stock In"],
-  ["stock_out", "Stock Out"], ["inventory", "Inventory / Bins / Stock Take"], ["locations", "Locations / Move Stock"], ["orders", "Orders / Pick"],
-  ["picker_ops", "Picker Ops / Tools"], ["pick_transfer", "Pick Transfer"], ["shiprocket", "Ship / Dispatch"],
-  ["shipping_status", "Shipping Status"], ["returns", "Returns"], ["refunds", "Payment Refunds"],
-  ["money_tracking", "Money Tracking"], ["invoices", "Invoices"], ["reports", "Reports"], ["users", "Users"],
-  ["ops_config", "Ops Config"], ["settings", "Settings"],
-];
-const rolePermissionPresets = {
-  admin: accessPermissions.map(([value]) => value),
-  manager: ["dashboard", "products", "suppliers", "stock_in", "stock_out", "inventory", "locations", "orders", "picker_ops", "pick_transfer", "shiprocket", "shipping_status", "returns", "refunds", "money_tracking", "invoices", "reports"],
-  picker: ["dashboard", "orders", "picker_ops", "pick_transfer", "shiprocket", "shipping_status", "returns", "stock_in", "inventory", "locations"],
+const rolePermissionCatalogs = {
+  admin: [
+    ["panel_dashboard", "Dashboard"], ["panel_orders", "Orders"], ["panel_customers", "Customers"],
+    ["panel_pickers", "Pickers"], ["panel_returns", "Returns"], ["panel_inventory", "Inventory"],
+    ["panel_user_create", "User Creating"], ["panel_shiprocket", "Shiprocket"], ["panel_catalog", "Catalog"],
+    ["panel_tracking", "Order Tracking"], ["panel_content", "Website / App Edit"],
+    ["panel_ops_config", "Warehouse Ops Config"], ["panel_automation", "Automation"],
+  ],
+  manager: [
+    ["dashboard", "Dashboard"], ["products", "Products"], ["suppliers", "Suppliers"], ["stock_in", "Stock In"],
+    ["stock_out", "Stock Out"], ["inventory", "Inventory"], ["locations", "Locations"], ["orders", "Orders"],
+    ["picker_ops", "Picker Ops"], ["pick_transfer", "Pick Transfer"], ["shiprocket", "Shiprocket"],
+    ["shipping_status", "Shipping Status"], ["returns", "Customer Returns"], ["refunds", "Payment Refunds"],
+    ["money_tracking", "Money Tracking"], ["invoices", "Invoices"], ["reports", "Reports"],
+  ],
+  picker: [
+    ["picker_home", "Home"], ["picker_pick", "Pick"], ["picker_ship", "Ship"], ["picker_returns", "Return"],
+    ["picker_stock_in", "Stock In"], ["picker_stock_take", "Stock Take"], ["picker_move_stock", "Move Stock"],
+    ["picker_bins", "Bins"], ["picker_tools", "Tools"],
+  ],
+};
+const rolePermissionHeadings = {
+  admin: "Admin panel permissions",
+  manager: "Warehouse page permissions",
+  picker: "Picker app permissions",
 };
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -84,11 +98,11 @@ function bindActions() {
   $("#close-drawer").addEventListener("click", closeDrawer);
   $("#save-record").addEventListener("click", saveRecord);
   $("#delete-record").addEventListener("click", deleteAccessUser);
-  userCreateForm.elements.role.addEventListener("change", (event) => applyRolePermissions(userCreateForm, event.target.value));
-  applyRolePermissions(userCreateForm, userCreateForm.elements.role.value);
+  userCreateForm.elements.role.addEventListener("change", (event) => renderRolePermissions(userCreateForm, event.target.value));
+  renderRolePermissions(userCreateForm, userCreateForm.elements.role.value);
   $("#record-form").addEventListener("change", (event) => {
     if (event.target.name === "role" && store.editing?.type === "accessUsers") {
-      applyRolePermissions(event.currentTarget, event.target.value);
+      renderRolePermissions(event.currentTarget, event.target.value);
     }
   });
   $$("[data-action='load-products']").forEach((button) => button.addEventListener("click", loadProducts));
@@ -114,6 +128,7 @@ function bindLogin() {
       const data = await response.json();
       if (!response.ok || data.ok === false) throw new Error(data.message || "Login failed");
       store.adminToken = data.token;
+      store.adminPermissions = data.permissions || [];
       localStorage.setItem("evspeareAdminSession", data.token);
       $("#login-gate").classList.remove("active");
       await initializeSession();
@@ -133,7 +148,10 @@ async function initializeSession() {
     const data = await response.json();
     if (!response.ok || data.ok === false) throw new Error(data.message || "Config failed");
     store.config = { ...store.config, ...data.config };
+    store.adminPermissions = data.permissions || [];
     $("#login-gate").classList.remove("active");
+    const activePage = $(".nav-stack button.active") || $(".nav-stack button");
+    if (activePage) openPage(activePage.dataset.page, activePage.textContent.trim());
     await refreshAll();
     startAutoRefresh();
   } catch (error) {
@@ -145,9 +163,19 @@ async function initializeSession() {
 }
 
 function openPage(page, title) {
+  if (!canOpenAdminPage(page)) {
+    $$(".nav-stack button").forEach((item) => item.classList.remove("active"));
+    $$(".page").forEach((panel) => panel.classList.toggle("active", panel.dataset.pagePanel === "access-denied"));
+    $("#page-title").textContent = "Access Denied";
+    return;
+  }
   $$(".nav-stack button").forEach((item) => item.classList.toggle("active", item.dataset.page === page));
   $$(".page").forEach((panel) => panel.classList.toggle("active", panel.dataset.pagePanel === page));
   $("#page-title").textContent = title;
+}
+
+function canOpenAdminPage(page) {
+  return store.adminPermissions.includes("*") || store.adminPermissions.includes(`panel_${String(page).replaceAll("-", "_")}`);
 }
 
 async function refreshAll() {
@@ -155,7 +183,7 @@ async function refreshAll() {
   await Promise.allSettled([loadProducts(), loadOrders(), loadCustomers(), loadPicker(), loadReturns()]);
   await loadInventory();
   await loadWarehouses();
-  await loadCreatedUsers();
+  if (canOpenAdminPage("user-create")) await loadCreatedUsers();
   store.lastSync = new Date();
   setSyncState(Object.keys(store.errors).length ? "Partial" : "Live");
   renderAll();
@@ -669,7 +697,6 @@ function openDrawer(type, id) {
   $("#record-form").innerHTML = type === "accessUsers" ? accessUserEditorHtml(item) : editableFields(type, item).map(([name, label, value]) => `
     <label>${escapeHtml(label)}<input name="${escapeHtml(name)}" value="${escapeHtml(value)}" /></label>
   `).join("");
-  if (type === "accessUsers") filterRolePermissionOptions($("#record-form"), item.role);
   $("#delete-record").hidden = type !== "accessUsers";
   $("#edit-drawer").classList.add("open");
   $("#edit-drawer").setAttribute("aria-hidden", "false");
@@ -777,7 +804,7 @@ async function createAccessUser() {
     return;
   }
   form.reset();
-  applyRolePermissions(form, form.elements.role.value);
+  renderRolePermissions(form, form.elements.role.value);
   populateWarehouseFilter();
   await loadCreatedUsers();
 }
@@ -805,7 +832,7 @@ function accessUserEditorHtml(item) {
     .filter(([id]) => id)
     .map(([id, label]) => `<option value="${escapeHtml(id)}" ${id === selectedWarehouse ? "selected" : ""}>${escapeHtml(label)}</option>`)
     .join("");
-  const checked = new Set(item.permissions || []);
+  const checked = pickerPermissionsFromLegacy(item.role, item.permissions || []);
   return `
     <div class="option-row">
       <label>User type
@@ -827,27 +854,46 @@ function accessUserEditorHtml(item) {
       </label>
     </div>
     <details open>
-      <summary>Permissions</summary>
-      <div class="permission-grid">
-        ${accessPermissions.map(([value, label]) => `<label><input name="permissions" type="checkbox" value="${value}" ${checked.has(value) ? "checked" : ""} /> ${label}</label>`).join("")}
+      <summary data-permission-heading>${escapeHtml(rolePermissionHeadings[item.role] || "Permissions")}</summary>
+      <div class="permission-grid" data-role-permissions>
+        ${permissionOptionsHtml(item.role, checked)}
       </div>
     </details>
   `;
 }
 
-function applyRolePermissions(form, role) {
-  const permitted = new Set(rolePermissionPresets[role] || []);
-  form.querySelectorAll('input[name="permissions"]').forEach((checkbox) => {
-    checkbox.checked = permitted.has(checkbox.value);
-  });
-  filterRolePermissionOptions(form, role);
+function renderRolePermissions(form, role, selected = null) {
+  const node = form.querySelector("[data-role-permissions]");
+  if (!node) return;
+  const heading = form.querySelector("[data-permission-heading]");
+  if (heading) heading.textContent = rolePermissionHeadings[role] || "Permissions";
+  const permitted = selected || new Set((rolePermissionCatalogs[role] || []).map(([value]) => value));
+  node.innerHTML = permissionOptionsHtml(role, permitted);
 }
 
-function filterRolePermissionOptions(form, role) {
-  const permitted = new Set(rolePermissionPresets[role] || []);
-  form.querySelectorAll('input[name="permissions"]').forEach((checkbox) => {
-    checkbox.closest("label").hidden = !permitted.has(checkbox.value);
-  });
+function permissionOptionsHtml(role, checked) {
+  return (rolePermissionCatalogs[role] || []).map(([value, label]) =>
+    `<label><input name="permissions" type="checkbox" value="${value}" ${checked.has(value) ? "checked" : ""} /> ${label}</label>`
+  ).join("");
+}
+
+function pickerPermissionsFromLegacy(role, permissions) {
+  const checked = new Set(permissions);
+  if (role !== "picker" || permissions.some((value) => String(value).startsWith("picker_"))) return checked;
+  const legacyMap = {
+    dashboard: ["picker_home"],
+    orders: ["picker_pick"],
+    picker_ops: ["picker_tools"],
+    pick_transfer: ["picker_pick"],
+    shiprocket: ["picker_ship"],
+    shipping_status: ["picker_ship"],
+    returns: ["picker_returns"],
+    stock_in: ["picker_stock_in"],
+    inventory: ["picker_stock_take", "picker_bins"],
+    locations: ["picker_move_stock"],
+  };
+  permissions.forEach((permission) => (legacyMap[permission] || []).forEach((value) => checked.add(value)));
+  return checked;
 }
 
 function collectionFor(type) {

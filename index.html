@@ -93,6 +93,13 @@
           <button type="button" id="clear-filter">Clear</button>
         </section>
 
+        <section class="page" data-page-panel="access-denied">
+          <section class="panel access-denied-panel">
+            <span>Access denied</span>
+            <h2>You are not allowed to access this page.</h2>
+          </section>
+        </section>
+
         <section class="page active" data-page-panel="dashboard">
           <div class="metric-grid" id="status-metrics"></div>
           <div class="live-grid">
@@ -343,29 +350,8 @@
                   </label>
                 </div>
                 <details open>
-                  <summary>Permissions</summary>
-                  <div class="permission-grid">
-                    <label><input name="permissions" type="checkbox" value="dashboard" checked /> Dashboard / Home</label>
-                    <label><input name="permissions" type="checkbox" value="products" /> Products</label>
-                    <label><input name="permissions" type="checkbox" value="suppliers" /> Suppliers</label>
-                    <label><input name="permissions" type="checkbox" value="stock_in" /> Stock In</label>
-                    <label><input name="permissions" type="checkbox" value="stock_out" /> Stock Out</label>
-                    <label><input name="permissions" type="checkbox" value="inventory" checked /> Inventory / Bins / Stock Take</label>
-                    <label><input name="permissions" type="checkbox" value="locations" /> Locations / Move Stock</label>
-                    <label><input name="permissions" type="checkbox" value="orders" checked /> Orders / Pick</label>
-                    <label><input name="permissions" type="checkbox" value="picker_ops" checked /> Picker Ops / Tools</label>
-                    <label><input name="permissions" type="checkbox" value="pick_transfer" /> Pick Transfer</label>
-                    <label><input name="permissions" type="checkbox" value="shiprocket" /> Ship / Dispatch</label>
-                    <label><input name="permissions" type="checkbox" value="shipping_status" /> Shipping Status</label>
-                    <label><input name="permissions" type="checkbox" value="returns" /> Returns</label>
-                    <label><input name="permissions" type="checkbox" value="refunds" /> Payment Refunds</label>
-                    <label><input name="permissions" type="checkbox" value="money_tracking" /> Money Tracking</label>
-                    <label><input name="permissions" type="checkbox" value="invoices" /> Invoices</label>
-                    <label><input name="permissions" type="checkbox" value="reports" /> Reports</label>
-                    <label><input name="permissions" type="checkbox" value="users" /> Users</label>
-                    <label><input name="permissions" type="checkbox" value="ops_config" /> Ops Config</label>
-                    <label><input name="permissions" type="checkbox" value="settings" /> Settings</label>
-                  </div>
+                  <summary data-permission-heading>Admin panel permissions</summary>
+                  <div class="permission-grid" data-role-permissions></div>
                 </details>
               </form>
             </section>
