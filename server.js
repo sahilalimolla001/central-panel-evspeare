@@ -26,7 +26,7 @@ const config = {
 
 const adminId = process.env.CENTRAL_ADMIN_ID || "admin";
 const adminPassword = process.env.CENTRAL_ADMIN_PASSWORD || "admin123";
-const backendToken = process.env.BACKEND_BEARER_TOKEN || "";
+const backendToken = process.env.BACKEND_BEARER_TOKEN || process.env.WAREHOUSE_API_TOKEN || process.env.INTEGRATION_API_KEY || "";
 const warehouseId = process.env.WAREHOUSE_ID || "";
 
 const types = {
@@ -122,25 +122,17 @@ async function handleUsersApi(request, response) {
     }
   }
 
-  if (request.method === "GET") {
-    const db = readDb();
-    sendJson(response, 200, { ok: true, users: db.users.map(publicUser) });
+  if (request.method !== "GET") {
+    sendJson(response, 503, {
+      ok: false,
+      message: "Warehouse backend token missing. Set BACKEND_BEARER_TOKEN to the warehouse INTEGRATION_API_KEY so created users can login to warehouse.",
+    });
     return;
   }
 
-  if (request.method === "POST") {
-    const body = await readJson(request);
-    const user = buildUser(body);
-    if (!user.userId || !body.password || !user.warehouseId) {
-      sendJson(response, 400, { ok: false, message: "userId, password and warehouseId are required" });
-      return;
-    }
+  if (request.method === "GET") {
     const db = readDb();
-    const existingIndex = db.users.findIndex((item) => item.userId.toLowerCase() === user.userId.toLowerCase());
-    if (existingIndex >= 0) db.users[existingIndex] = { ...db.users[existingIndex], ...user, updatedAt: new Date().toISOString() };
-    else db.users.unshift(user);
-    writeDb(db);
-    sendJson(response, 200, { ok: true, user: publicUser(user) });
+    sendJson(response, 200, { ok: true, users: db.users.map(publicUser) });
     return;
   }
 
