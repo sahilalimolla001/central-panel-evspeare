@@ -32,6 +32,14 @@ const store = {
 };
 
 const statuses = ["all", "pending", "shipped", "delivered", "cancel", "return"];
+const accessPermissions = [
+  ["dashboard", "Dashboard"], ["products", "Products"], ["suppliers", "Suppliers"], ["stock_in", "Stock In"],
+  ["stock_out", "Stock Out"], ["inventory", "Inventory"], ["locations", "Locations"], ["orders", "Orders"],
+  ["picker_ops", "Picker Ops"], ["pick_transfer", "Pick Transfer"], ["shiprocket", "Shiprocket"],
+  ["shipping_status", "Shipping Status"], ["returns", "Returns"], ["refunds", "Payment Refunds"],
+  ["money_tracking", "Money Tracking"], ["invoices", "Invoices"], ["reports", "Reports"], ["users", "Users"],
+  ["ops_config", "Ops Config"], ["settings", "Settings"],
+];
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
@@ -69,6 +77,7 @@ function bindActions() {
   $("#refresh-created-users").addEventListener("click", loadCreatedUsers);
   $("#close-drawer").addEventListener("click", closeDrawer);
   $("#save-record").addEventListener("click", saveRecord);
+  $("#delete-record").addEventListener("click", deleteAccessUser);
   $$("[data-action='load-products']").forEach((button) => button.addEventListener("click", loadProducts));
   $$("[data-action='load-orders']").forEach((button) => button.addEventListener("click", loadOrders));
   $$("[data-action='load-customers']").forEach((button) => button.addEventListener("click", loadCustomers));
@@ -265,10 +274,14 @@ async function adminGet(path) {
 }
 
 async function adminPost(path, body) {
+  return adminRequest(path, "POST", body);
+}
+
+async function adminRequest(path, method, body) {
   const response = await fetch(path, {
-    method: "POST",
+    method,
     headers: { ...adminHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: body ? JSON.stringify(body) : undefined,
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.ok === false) throw new Error(data.message || `API ${response.status}`);
@@ -459,13 +472,20 @@ function renderShiprocket() {
 function renderCreatedUsers() {
   const node = $("#created-users-table");
   if (!node) return;
-  node.innerHTML = store.createdUsers.length ? store.createdUsers.map((item) => rowHtml("accessUsers", item, [
-    [item.userId, item.name || "No name"],
-    [statusPill(item.role), "Role"],
-    [item.warehouseCode ? `${item.warehouseId} / ${item.warehouseCode}` : item.warehouseId || "-", "Warehouse ID"],
-    [statusPill(item.status), "Status"],
-    [(item.permissions || []).join(", ") || "-", "Permissions"],
-  ])).join("") : emptyState("Abhi koi admin/picker user create nahi hua.");
+  node.innerHTML = store.createdUsers.length ? store.createdUsers.map((item) => `
+    <button class="access-user-row" type="button" data-edit-type="accessUsers" data-edit-id="${escapeHtml(item.id)}" aria-label="Edit ${escapeHtml(item.userId)}">
+      <span>
+        <strong>${escapeHtml(item.name || item.userId)}</strong>
+        <small>${escapeHtml(item.userId)}</small>
+      </span>
+      ${statusPill(item.role)}
+      <span class="warehouse-chip">
+        <strong>${escapeHtml(item.warehouseCode || item.warehouseId || "-")}</strong>
+        <small>${escapeHtml(item.status || "active")}</small>
+      </span>
+      <span class="access-row-arrow" aria-hidden="true">&rsaquo;</span>
+    </button>
+  `).join("") : emptyState("Abhi koi admin/picker user create nahi hua.");
 }
 
 function renderDashboardLists() {
@@ -631,11 +651,12 @@ function openDrawer(type, id) {
   const item = collectionFor(type).find((row) => String(row.id) === String(id));
   if (!item) return;
   store.editing = { type, id, item };
-  $("#drawer-kicker").textContent = type;
-  $("#drawer-title").textContent = item.number || item.name || item.sku || "Record";
-  $("#record-form").innerHTML = editableFields(type, item).map(([name, label, value]) => `
+  $("#drawer-kicker").textContent = type === "accessUsers" ? "User access" : type;
+  $("#drawer-title").textContent = item.userId || item.number || item.name || item.sku || "Record";
+  $("#record-form").innerHTML = type === "accessUsers" ? accessUserEditorHtml(item) : editableFields(type, item).map(([name, label, value]) => `
     <label>${escapeHtml(label)}<input name="${escapeHtml(name)}" value="${escapeHtml(value)}" /></label>
   `).join("");
+  $("#delete-record").hidden = type !== "accessUsers";
   $("#edit-drawer").classList.add("open");
   $("#edit-drawer").setAttribute("aria-hidden", "false");
 }
@@ -648,6 +669,10 @@ function closeDrawer() {
 
 async function saveRecord() {
   if (!store.editing) return;
+  if (store.editing.type === "accessUsers") {
+    await saveAccessUser();
+    return;
+  }
   const updates = Object.fromEntries(new FormData($("#record-form")).entries());
   const rows = collectionFor(store.editing.type);
   const index = rows.findIndex((row) => String(row.id) === String(store.editing.id));
@@ -661,6 +686,43 @@ async function saveRecord() {
   }
   closeDrawer();
   renderAll();
+}
+
+async function saveAccessUser() {
+  const formData = new FormData($("#record-form"));
+  const updates = Object.fromEntries(formData.entries());
+  updates.permissions = formData.getAll("permissions");
+  updates.id = store.editing.id;
+  if (!updates.userId || !updates.warehouseId) {
+    toast("User ID aur warehouse ID required hai.");
+    return;
+  }
+  if (!updates.password) delete updates.password;
+  try {
+    const response = await adminRequest("/api/admin/users", "PATCH", updates);
+    const savedUser = normalizeAccessUser(response.user || updates);
+    store.createdUsers = store.createdUsers.map((item) => String(item.id) === String(store.editing.id) ? savedUser : item);
+    toast(`${savedUser.userId} update ho gaya.`);
+    closeDrawer();
+    await loadCreatedUsers();
+  } catch (error) {
+    toast(`User update nahi hua: ${error.message}`);
+  }
+}
+
+async function deleteAccessUser() {
+  if (!store.editing || store.editing.type !== "accessUsers") return;
+  const user = store.editing.item;
+  if (!window.confirm(`${user.userId} ko delete karna hai?`)) return;
+  try {
+    await adminRequest("/api/admin/users", "DELETE", { id: user.id, userId: user.userId });
+    store.createdUsers = store.createdUsers.filter((item) => String(item.id) !== String(user.id));
+    toast(`${user.userId} delete ho gaya.`);
+    closeDrawer();
+    renderAll();
+  } catch (error) {
+    toast(`User delete nahi hua: ${error.message}`);
+  }
 }
 
 async function saveEditor(section) {
@@ -714,6 +776,48 @@ function editableFields(type, item) {
     products: [["name", "Product name", item.name], ["sku", "SKU", item.sku], ["price", "Price", item.price], ["stock", "Stock", item.stock], ["warehouseId", "Warehouse ID", item.warehouseId], ["category", "Category", item.category]],
   };
   return common[type] || Object.entries(item).slice(0, 8).map(([key, value]) => [key, key, value]);
+}
+
+function accessUserEditorHtml(item) {
+  const selectedWarehouse = String(item.warehouseId || "");
+  const warehouseOptions = store.warehouses.length
+    ? store.warehouses.map((warehouse) => [String(warehouse.id), warehouse.label || warehouse.code || warehouse.id])
+    : [[selectedWarehouse, item.warehouseCode || selectedWarehouse || "Assigned warehouse"]];
+  if (selectedWarehouse && !warehouseOptions.some(([id]) => id === selectedWarehouse)) {
+    warehouseOptions.unshift([selectedWarehouse, item.warehouseCode || selectedWarehouse]);
+  }
+  const optionHtml = warehouseOptions
+    .filter(([id]) => id)
+    .map(([id, label]) => `<option value="${escapeHtml(id)}" ${id === selectedWarehouse ? "selected" : ""}>${escapeHtml(label)}</option>`)
+    .join("");
+  const checked = new Set(item.permissions || []);
+  return `
+    <div class="option-row">
+      <label>User type
+        <select name="role">
+          ${["admin", "manager", "picker"].map((role) => `<option value="${role}" ${item.role === role ? "selected" : ""}>${escapeHtml(role)}</option>`).join("")}
+        </select>
+      </label>
+      <label>Status
+        <select name="status">
+          ${["active", "blocked"].map((status) => `<option value="${status}" ${item.status === status ? "selected" : ""}>${escapeHtml(status)}</option>`).join("")}
+        </select>
+      </label>
+      <label>User ID / Email<input name="userId" type="text" value="${escapeHtml(item.userId)}" required /></label>
+      <label>New password<input name="password" type="password" autocomplete="new-password" placeholder="Leave blank to keep current" /></label>
+      <label>Full name<input name="name" value="${escapeHtml(item.name || "")}" /></label>
+      <label>Phone<input name="phone" inputmode="tel" value="${escapeHtml(item.phone || "")}" /></label>
+      <label>Warehouse
+        <select name="warehouseId" required>${optionHtml}</select>
+      </label>
+    </div>
+    <details open>
+      <summary>Permissions</summary>
+      <div class="permission-grid">
+        ${accessPermissions.map(([value, label]) => `<label><input name="permissions" type="checkbox" value="${value}" ${checked.has(value) ? "checked" : ""} /> ${label}</label>`).join("")}
+      </div>
+    </details>
+  `;
 }
 
 function collectionFor(type) {

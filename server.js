@@ -122,23 +122,31 @@ async function handleUsersApi(request, response) {
     }
   }
 
-  if (request.method !== "GET") {
-    sendJson(response, 503, {
-      ok: false,
-      message: "Warehouse backend token missing. Set BACKEND_BEARER_TOKEN to the warehouse INTEGRATION_API_KEY so created users can login to warehouse.",
-    });
+  const db = readDb();
+  if (request.method === "GET") {
+    sendJson(response, 200, { ok: true, users: db.users.map(publicUser) });
     return;
   }
 
-  if (request.method === "GET") {
-    const db = readDb();
-    sendJson(response, 200, { ok: true, users: db.users.map(publicUser) });
+  if (request.method === "POST") {
+    const body = await readJson(request);
+    if (!body.userId || !body.password || !body.warehouseId) {
+      sendJson(response, 400, { ok: false, message: "userId, password and warehouseId are required" });
+      return;
+    }
+    if (db.users.some((item) => item.userId.toLowerCase() === String(body.userId).trim().toLowerCase())) {
+      sendJson(response, 409, { ok: false, message: "User ID already exists" });
+      return;
+    }
+    const user = buildUser(body);
+    db.users.push(user);
+    writeDb(db);
+    sendJson(response, 201, { ok: true, user: publicUser(user), localOnly: true });
     return;
   }
 
   if (request.method === "PUT" || request.method === "PATCH") {
     const body = await readJson(request);
-    const db = readDb();
     const index = db.users.findIndex((item) => String(item.id) === String(body.id) || item.userId.toLowerCase() === String(body.userId || "").toLowerCase());
     if (index < 0) {
       sendJson(response, 404, { ok: false, message: "User not found" });
@@ -150,6 +158,19 @@ async function handleUsersApi(request, response) {
     db.users[index] = { ...db.users[index], ...updates, updatedAt: new Date().toISOString() };
     writeDb(db);
     sendJson(response, 200, { ok: true, user: publicUser(db.users[index]) });
+    return;
+  }
+
+  if (request.method === "DELETE") {
+    const body = await readJson(request);
+    const index = db.users.findIndex((item) => String(item.id) === String(body.id) || item.userId.toLowerCase() === String(body.userId || "").toLowerCase());
+    if (index < 0) {
+      sendJson(response, 404, { ok: false, message: "User not found" });
+      return;
+    }
+    const deleted = db.users.splice(index, 1)[0];
+    writeDb(db);
+    sendJson(response, 200, { ok: true, user: publicUser(deleted), localOnly: true });
     return;
   }
 

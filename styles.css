@@ -316,6 +316,24 @@ select {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.user-management-grid {
+  height: min(calc(100vh - 182px), 760px);
+  min-height: 540px;
+}
+
+.user-management-grid > .panel {
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.user-panel-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
+}
+
 .settings-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -426,6 +444,50 @@ select {
 .chart-card:hover {
   border-color: #c6d3e1;
   background: #ffffff;
+}
+
+.access-user-list {
+  align-content: start;
+}
+
+.access-user-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(130px, 1.45fr) minmax(86px, 0.75fr) minmax(100px, 0.9fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 11px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-weight: 500;
+  text-align: left;
+}
+
+.access-user-row:hover,
+.access-user-row:focus-visible {
+  background: white;
+}
+
+.access-user-row strong,
+.access-user-row small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.access-user-row small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.access-user-row .status-pill {
+  justify-self: start;
+}
+
+.access-row-arrow {
+  color: var(--muted);
+  font-size: 19px;
+  font-weight: 700;
 }
 
 .row-cell {
@@ -674,6 +736,35 @@ summary {
   overflow: auto;
 }
 
+.drawer-panel .option-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 0;
+}
+
+.drawer-panel .permission-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.drawer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.drawer-actions button {
+  flex: 1;
+  padding: 10px 12px;
+}
+
+.danger {
+  border-color: #fecdd3;
+  background: #fff1f2;
+  color: var(--rose);
+}
+
+.danger:hover {
+  border-color: #fda4af;
+}
+
 .toast {
   position: fixed;
   right: 18px;
@@ -752,6 +843,34 @@ summary {
   }
 
   .data-row {
+    grid-template-columns: 1fr;
+  }
+
+  .user-management-grid {
+    height: auto;
+    min-height: 0;
+  }
+
+  .user-management-grid > .panel {
+    height: min(70vh, 640px);
+    min-height: 420px;
+  }
+
+  .access-user-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .access-user-row .warehouse-chip {
+    grid-column: 1;
+  }
+
+  .access-row-arrow {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .drawer-panel .option-row,
+  .drawer-panel .permission-grid {
     grid-template-columns: 1fr;
   }
 

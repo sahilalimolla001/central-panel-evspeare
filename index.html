@@ -287,8 +287,8 @@
         </section>
 
         <section class="page" data-page-panel="user-create">
-          <div class="editor-grid">
-            <section class="panel">
+          <div class="editor-grid user-management-grid">
+            <section class="panel user-editor-panel">
               <div class="panel-head">
                 <div>
                   <span>Access control</span>
@@ -296,7 +296,7 @@
                 </div>
                 <button type="button" id="create-user">Create user</button>
               </div>
-              <form class="edit-form" id="user-create-form">
+              <form class="edit-form user-panel-scroll" id="user-create-form">
                 <div class="option-row">
                   <label>
                     User type
@@ -370,15 +370,15 @@
               </form>
             </section>
 
-            <section class="panel">
+            <section class="panel user-list-panel">
               <div class="panel-head">
                 <div>
                   <span>Created users</span>
-                  <h2>Admin and picker access rows</h2>
+                  <h2>Admin and picker users</h2>
                 </div>
                 <button type="button" id="refresh-created-users">Refresh</button>
               </div>
-              <div class="data-table" id="created-users-table"></div>
+              <div class="data-table user-panel-scroll access-user-list" id="created-users-table"></div>
             </section>
           </div>
         </section>
@@ -678,7 +678,10 @@
           <button type="button" id="close-drawer">Close</button>
         </div>
         <form class="edit-form" id="record-form"></form>
-        <button class="primary" type="button" id="save-record">Save record</button>
+        <div class="drawer-actions">
+          <button class="primary" type="button" id="save-record">Save record</button>
+          <button class="danger" type="button" id="delete-record" hidden>Delete user</button>
+        </div>
       </div>
     </aside>
 
