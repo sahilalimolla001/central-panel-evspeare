@@ -67,6 +67,7 @@ function bindActions() {
   $("#tracking-form").addEventListener("submit", trackOrder);
   $("#create-user").addEventListener("click", createAccessUser);
   $("#refresh-created-users").addEventListener("click", loadCreatedUsers);
+  $("#user-warehouse-select")?.addEventListener("change", syncWarehouseIdBox);
   $("#close-drawer").addEventListener("click", closeDrawer);
   $("#save-record").addEventListener("click", saveRecord);
   $$("[data-action='load-products']").forEach((button) => button.addEventListener("click", loadProducts));
@@ -551,7 +552,15 @@ function populateWarehouseFilter() {
       : warehouses.map((id) => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`).join("");
     userWarehouseSelect.innerHTML = `<option value="">Select warehouse ID</option>${options}`;
     if (Array.from(userWarehouseSelect.options).some((option) => option.value === selected)) userWarehouseSelect.value = selected;
+    syncWarehouseIdBox();
   }
+}
+
+function syncWarehouseIdBox() {
+  const select = $("#user-warehouse-select");
+  const input = $("#user-warehouse-id");
+  if (!select || !input || !select.value) return;
+  input.value = select.value;
 }
 
 function trackOrder(event) {
