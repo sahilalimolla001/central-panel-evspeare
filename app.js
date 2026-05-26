@@ -516,13 +516,23 @@ function populateWarehouseFilter() {
   const select = $("#warehouse-filter");
   const current = select.value;
   const warehouses = [...new Set([
+    store.config.warehouseId,
     ...store.orders.map((item) => item.warehouseId || item.warehouse),
     ...store.pickerOrders.map((item) => item.warehouseId || item.warehouse),
     ...store.inventory.map((item) => item.warehouseId || item.warehouse),
     ...store.products.map((item) => item.warehouseId || item.warehouse),
+    ...store.createdUsers.map((item) => item.warehouseId || item.warehouse),
+    ...store.createdUsers.flatMap((item) => (item.warehouses || []).map((warehouse) => warehouse.id || warehouse.code)),
   ].filter(Boolean).map(String))].sort();
   select.innerHTML = `<option value="">All warehouses</option>${warehouses.map((id) => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`).join("")}`;
   if (warehouses.includes(current)) select.value = current;
+
+  const userWarehouseSelect = $("#user-warehouse-select");
+  if (userWarehouseSelect) {
+    const selected = userWarehouseSelect.value;
+    userWarehouseSelect.innerHTML = `<option value="">Select warehouse</option>${warehouses.map((id) => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`).join("")}`;
+    if (warehouses.includes(selected)) userWarehouseSelect.value = selected;
+  }
 }
 
 function trackOrder(event) {

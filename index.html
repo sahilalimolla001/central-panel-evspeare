@@ -329,8 +329,10 @@
                     <input name="phone" inputmode="tel" placeholder="10 digit mobile" />
                   </label>
                   <label>
-                    Warehouse ID
-                    <input name="warehouseId" placeholder="WH-001" required />
+                    Warehouse
+                    <select name="warehouseId" id="user-warehouse-select" required>
+                      <option value="">Select warehouse</option>
+                    </select>
                   </label>
                   <label>
                     Status
@@ -343,11 +345,25 @@
                 <details open>
                   <summary>Permissions</summary>
                   <div class="permission-grid">
+                    <label><input name="permissions" type="checkbox" value="dashboard" checked /> Dashboard</label>
+                    <label><input name="permissions" type="checkbox" value="products" /> Products</label>
+                    <label><input name="permissions" type="checkbox" value="suppliers" /> Suppliers</label>
+                    <label><input name="permissions" type="checkbox" value="stock_in" /> Stock In</label>
+                    <label><input name="permissions" type="checkbox" value="stock_out" /> Stock Out</label>
+                    <label><input name="permissions" type="checkbox" value="inventory" checked /> Inventory</label>
+                    <label><input name="permissions" type="checkbox" value="locations" /> Locations</label>
                     <label><input name="permissions" type="checkbox" value="orders" checked /> Orders</label>
-                    <label><input name="permissions" type="checkbox" value="picking" checked /> Picking</label>
-                    <label><input name="permissions" type="checkbox" value="dispatch" checked /> Dispatch</label>
+                    <label><input name="permissions" type="checkbox" value="picker_ops" checked /> Picker Ops</label>
+                    <label><input name="permissions" type="checkbox" value="pick_transfer" /> Pick Transfer</label>
+                    <label><input name="permissions" type="checkbox" value="shiprocket" /> Shiprocket</label>
+                    <label><input name="permissions" type="checkbox" value="shipping_status" /> Shipping Status</label>
                     <label><input name="permissions" type="checkbox" value="returns" /> Returns</label>
-                    <label><input name="permissions" type="checkbox" value="inventory" /> Inventory</label>
+                    <label><input name="permissions" type="checkbox" value="refunds" /> Payment Refunds</label>
+                    <label><input name="permissions" type="checkbox" value="money_tracking" /> Money Tracking</label>
+                    <label><input name="permissions" type="checkbox" value="invoices" /> Invoices</label>
+                    <label><input name="permissions" type="checkbox" value="reports" /> Reports</label>
+                    <label><input name="permissions" type="checkbox" value="users" /> Users</label>
+                    <label><input name="permissions" type="checkbox" value="ops_config" /> Ops Config</label>
                     <label><input name="permissions" type="checkbox" value="settings" /> Settings</label>
                   </div>
                 </details>
