@@ -91,6 +91,11 @@ async function handleAdminApi(request, response, requestUrl) {
     return;
   }
 
+  if (requestUrl.pathname === "/api/admin/warehouses") {
+    await handleWarehousesApi(request, response);
+    return;
+  }
+
   if (requestUrl.pathname === "/api/admin/proxy") {
     await proxyBackend(request, response, requestUrl);
     return;
@@ -159,8 +164,45 @@ async function handleUsersApi(request, response) {
   sendJson(response, 405, { ok: false, message: "Method not allowed" });
 }
 
+async function handleWarehousesApi(request, response) {
+  if (request.method !== "GET") {
+    sendJson(response, 405, { ok: false, message: "Method not allowed" });
+    return;
+  }
+
+  if (backendToken) {
+    try {
+      const synced = await proxyCentralPath(request, "/central-panel/warehouses");
+      response.writeHead(synced.status, {
+        "Content-Type": synced.contentType,
+        "Cache-Control": "no-store",
+      });
+      response.end(synced.text);
+      return;
+    } catch (error) {
+      sendJson(response, 502, { ok: false, message: `Warehouse list sync failed: ${error.message}` });
+      return;
+    }
+  }
+
+  const db = readDb();
+  const warehouses = [...new Set(db.users.map((user) => user.warehouseId).filter(Boolean))].map((id) => ({
+    id,
+    code: id,
+    name: id,
+  }));
+  if (warehouseId && !warehouses.some((warehouse) => String(warehouse.id) === String(warehouseId))) {
+    warehouses.unshift({ id: warehouseId, code: warehouseId, name: warehouseId });
+  }
+  sendJson(response, 200, { ok: true, warehouses });
+}
+
 async function proxyCentralUsers(request) {
-  const target = `${config.backendApi}/central-panel/users`;
+  return proxyCentralPath(request, "/central-panel/users");
+}
+
+async function proxyCentralPath(request, path) {
+  const target = `${config.backendApi}${path}`;
   const headers = { Accept: "application/json", Authorization: `Bearer ${backendToken}` };
   if (!["GET", "HEAD"].includes(request.method)) headers["Content-Type"] = "application/json";
   const body = ["GET", "HEAD"].includes(request.method) ? undefined : await readText(request);

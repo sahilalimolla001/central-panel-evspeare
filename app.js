@@ -23,6 +23,7 @@ const store = {
   returns: [],
   inventory: [],
   createdUsers: [],
+  warehouses: [],
   activeTab: "all",
   editing: null,
   errors: {},
@@ -131,6 +132,7 @@ async function refreshAll() {
   setSyncState("Syncing");
   await Promise.allSettled([loadProducts(), loadOrders(), loadCustomers(), loadPicker(), loadReturns()]);
   await loadInventory();
+  await loadWarehouses();
   await loadCreatedUsers();
   store.lastSync = new Date();
   setSyncState(Object.keys(store.errors).length ? "Partial" : "Live");
@@ -195,6 +197,18 @@ async function loadCreatedUsers() {
     store.errors.createdUsers = `${error.message}. Backend user-create endpoint ready nahi hai, local draft dikh raha hai.`;
   }
   renderCreatedUsers();
+}
+
+async function loadWarehouses() {
+  try {
+    const payload = await adminGet("/api/admin/warehouses");
+    store.warehouses = asArray(payload).map(normalizeWarehouse);
+    delete store.errors.warehouses;
+  } catch (error) {
+    store.warehouses = [];
+    store.errors.warehouses = error.message;
+  }
+  populateWarehouseFilter();
 }
 
 async function loadRows(key, endpoint, normalizer, fallback = []) {
@@ -448,7 +462,7 @@ function renderCreatedUsers() {
   node.innerHTML = store.createdUsers.length ? store.createdUsers.map((item) => rowHtml("accessUsers", item, [
     [item.userId, item.name || "No name"],
     [statusPill(item.role), "Role"],
-    [item.warehouseId || "-", "Warehouse ID"],
+    [item.warehouseCode ? `${item.warehouseId} / ${item.warehouseCode}` : item.warehouseId || "-", "Warehouse ID"],
     [statusPill(item.status), "Status"],
     [(item.permissions || []).join(", ") || "-", "Permissions"],
   ])).join("") : emptyState("Abhi koi admin/picker user create nahi hua.");
@@ -517,6 +531,8 @@ function populateWarehouseFilter() {
   const current = select.value;
   const warehouses = [...new Set([
     store.config.warehouseId,
+    ...store.warehouses.map((item) => item.id),
+    ...store.warehouses.map((item) => item.code),
     ...store.orders.map((item) => item.warehouseId || item.warehouse),
     ...store.pickerOrders.map((item) => item.warehouseId || item.warehouse),
     ...store.inventory.map((item) => item.warehouseId || item.warehouse),
@@ -530,8 +546,11 @@ function populateWarehouseFilter() {
   const userWarehouseSelect = $("#user-warehouse-select");
   if (userWarehouseSelect) {
     const selected = userWarehouseSelect.value;
-    userWarehouseSelect.innerHTML = `<option value="">Select warehouse</option>${warehouses.map((id) => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`).join("")}`;
-    if (warehouses.includes(selected)) userWarehouseSelect.value = selected;
+    const options = store.warehouses.length
+      ? store.warehouses.map((warehouse) => `<option value="${escapeHtml(warehouse.id)}">${escapeHtml(warehouse.label)}</option>`).join("")
+      : warehouses.map((id) => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`).join("");
+    userWarehouseSelect.innerHTML = `<option value="">Select warehouse ID</option>${options}`;
+    if (Array.from(userWarehouseSelect.options).some((option) => option.value === selected)) userWarehouseSelect.value = selected;
   }
 }
 
@@ -673,16 +692,16 @@ async function createAccessUser() {
   delete data.confirmPassword;
   const user = normalizeAccessUser({ ...data, id: data.userId, createdAt: new Date().toISOString() });
   try {
-    await adminPost("/api/admin/users", data);
-    toast("User backend me create ho gaya.");
-  } catch {
-    const { password, ...safeUser } = user;
-    const users = loadLocalUsers().filter((item) => item.userId !== user.userId);
-    users.unshift(safeUser);
-    localStorage.setItem("evspeareAccessUsers", JSON.stringify(users));
-    toast("Backend endpoint ready nahi hai. User local draft me save ho gaya.");
+    const response = await adminPost("/api/admin/users", data);
+    const savedUser = normalizeAccessUser(response.user || user);
+    store.createdUsers = [savedUser, ...store.createdUsers.filter((item) => item.userId !== savedUser.userId)];
+    toast(`User save ho gaya. ${savedUser.userId} ab warehouse login kar sakta hai.`);
+  } catch (error) {
+    toast(`User save nahi hua: ${error.message}. Login tabhi chalega jab backend save successful ho.`);
+    return;
   }
   form.reset();
+  populateWarehouseFilter();
   await loadCreatedUsers();
 }
 
@@ -967,16 +986,35 @@ function normalizeReturn(item, index = 0) {
 }
 
 function normalizeAccessUser(item, index = 0) {
+  const firstWarehouse = Array.isArray(item.warehouses) ? item.warehouses[0] : null;
+  const warehouseId = text(item, ["warehouseId", "warehouse_id"]) || text(firstWarehouse, ["id"]);
+  const warehouseCode = text(item, ["warehouseCode", "warehouse_code", "warehouse"]) || text(firstWarehouse, ["code", "name"]);
   return {
     id: String(item.id || item.userId || item.email || index),
     userId: text(item, ["userId", "email", "username", "id"]) || `user-${index + 1}`,
     name: text(item, ["name", "full_name"]),
     phone: text(item, ["phone", "mobile"]),
     role: text(item, ["role", "type"]) || "picker",
-    warehouseId: text(item, ["warehouseId", "warehouse_id", "warehouse", "warehouse_code"]),
+    warehouseId,
+    warehouseCode,
+    warehouses: Array.isArray(item.warehouses) ? item.warehouses : [],
     status: text(item, ["status"]) || "active",
     permissions: Array.isArray(item.permissions) ? item.permissions : String(item.permissions || "").split(",").map((value) => value.trim()).filter(Boolean),
     createdAt: text(item, ["createdAt", "created_at"]),
+  };
+}
+
+function normalizeWarehouse(item, index = 0) {
+  const id = text(item, ["id", "warehouseId", "warehouse_id"]) || text(item, ["code"]) || String(index + 1);
+  const code = text(item, ["code", "warehouseCode", "warehouse_code"]) || id;
+  const name = text(item, ["name", "title"]) || code;
+  const pincode = text(item, ["pincode", "pin"]);
+  return {
+    id,
+    code,
+    name,
+    pincode,
+    label: `${code}${name && name !== code ? ` / ${name}` : ""}${pincode ? ` / ${pincode}` : ""}`,
   };
 }
 
@@ -1020,7 +1058,7 @@ function resolveMediaUrl(value) {
 function asArray(payload) {
   if (Array.isArray(payload)) return payload;
   if (!payload || typeof payload !== "object") return [];
-  for (const key of ["products", "orders", "customers", "users", "items", "returns", "data", "results", "records"]) {
+  for (const key of ["products", "orders", "customers", "users", "warehouses", "items", "returns", "data", "results", "records"]) {
     if (Array.isArray(payload[key])) return payload[key];
   }
   return [];
