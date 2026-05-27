@@ -13,6 +13,7 @@ const staffSessions = new Map();
 const config = {
   websiteUrl: process.env.WEBSITE_URL || "https://www.evspeare.shop",
   pickerUrl: process.env.PICKER_URL || "https://evsphere-warehouse-mobile-production.up.railway.app",
+  inboundAppUrl: process.env.INBOUND_APP_URL || "",
   backendApi: (process.env.BACKEND_API_URL || "https://evsphere-warehouse-backend-production.up.railway.app/api").replace(/\/+$/, ""),
   productsEndpoint: process.env.PRODUCTS_ENDPOINT || "https://www.evspeare.shop/api/mobile/products",
   ordersEndpoint: process.env.ORDERS_ENDPOINT || "https://www.evspeare.shop/api/mobile/orders",
@@ -21,6 +22,7 @@ const config = {
   returnsEndpoint: process.env.RETURNS_ENDPOINT || "/returns/pick-list",
   inventoryEndpoint: process.env.INVENTORY_ENDPOINT || "/inventory",
   updateEndpoint: process.env.UPDATE_ENDPOINT || "/central-panel/update",
+  inboundOrdersEndpoint: process.env.INBOUND_ORDERS_ENDPOINT || "/central-panel/inbound-orders",
 };
 
 const adminId = process.env.CENTRAL_ADMIN_ID || "admin";

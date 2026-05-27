@@ -8,3 +8,4 @@ Thumbs.db
 data/*.json
 warehouse-source/
 evspeare-app-source/
+inbound-customer-app-source/

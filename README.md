@@ -38,10 +38,14 @@ Set these environment variables in your hosting provider:
 - `RETURNS_ENDPOINT`
 - `INVENTORY_ENDPOINT`
 - `UPDATE_ENDPOINT`
+- `INBOUND_ORDERS_ENDPOINT` optional warehouse inbound order feed, default `/central-panel/inbound-orders`
+- `INBOUND_APP_URL` optional deployed inbound customer storefront link shown in the panel
 
 The frontend does not show API settings. It logs in through `/api/admin/login` and uses the server-side proxy `/api/admin/proxy`.
 
 For real warehouse user creation, set `BACKEND_BEARER_TOKEN` to the same value as the warehouse backend `INTEGRATION_API_KEY`. Then `/api/admin/users` syncs users into the warehouse database through `/api/central-panel/users`.
+
+Create customers with the `Inbound Customer` role and map a warehouse. Those credentials log into the dedicated `inbound-customer-app-source` app; orders receive a server-enforced 20% discount and appear in the central `Inbound Customers` page.
 
 ## Built-in user backend
 

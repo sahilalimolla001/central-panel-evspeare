@@ -9,6 +9,7 @@ const defaults = {
   returnsEndpoint: "/returns/pick-list",
   inventoryEndpoint: "/inventory",
   updateEndpoint: "/central-panel/update",
+  inboundOrdersEndpoint: "/central-panel/inbound-orders",
   warehouseId: "",
   autoRefreshSeconds: "30",
 };
@@ -23,6 +24,7 @@ const store = {
   returns: [],
   inventory: [],
   createdUsers: [],
+  inboundOrders: [],
   warehouses: [],
   activeTab: "all",
   editing: null,
@@ -40,6 +42,7 @@ const rolePermissionCatalogs = {
     ["panel_user_create", "User Creating"], ["panel_shiprocket", "Shiprocket"], ["panel_catalog", "Catalog"],
     ["panel_tracking", "Order Tracking"], ["panel_content", "Website / App Edit"],
     ["panel_ops_config", "Warehouse Ops Config"], ["panel_automation", "Automation"],
+    ["panel_inbound_customers", "Inbound Customers"],
   ],
   manager: [
     ["dashboard", "Dashboard"], ["products", "Products"], ["suppliers", "Suppliers"], ["stock_in", "Stock In"],
@@ -47,17 +50,20 @@ const rolePermissionCatalogs = {
     ["picker_ops", "Picker Ops"], ["pick_transfer", "Pick Transfer"], ["shiprocket", "Shiprocket"],
     ["shipping_status", "Shipping Status"], ["returns", "Customer Returns"], ["refunds", "Payment Refunds"],
     ["money_tracking", "Money Tracking"], ["invoices", "Invoices"], ["reports", "Reports"],
+    ["inbound_customers", "Inbound Customers"],
   ],
   picker: [
     ["picker_home", "Home"], ["picker_pick", "Pick"], ["picker_ship", "Ship"], ["picker_returns", "Return"],
     ["picker_stock_in", "Stock In"], ["picker_stock_take", "Stock Take"], ["picker_move_stock", "Move Stock"],
     ["picker_bins", "Bins"], ["picker_tools", "Tools"],
   ],
+  inbound_customer: [],
 };
 const rolePermissionHeadings = {
   admin: "Admin panel permissions",
   manager: "Warehouse page permissions",
   picker: "Picker app permissions",
+  inbound_customer: "Customer app access",
 };
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -110,6 +116,7 @@ function bindActions() {
   $$("[data-action='load-customers']").forEach((button) => button.addEventListener("click", loadCustomers));
   $$("[data-action='load-picker']").forEach((button) => button.addEventListener("click", loadPicker));
   $$("[data-action='load-returns']").forEach((button) => button.addEventListener("click", loadReturns));
+  $$("[data-action='load-inbound-orders']").forEach((button) => button.addEventListener("click", loadInboundOrders));
   $$("[data-action='load-inventory']").forEach((button) => button.addEventListener("click", loadInventory));
   $$("[data-save-editor]").forEach((button) => button.addEventListener("click", () => saveEditor(button.dataset.saveEditor)));
   $$("[data-export]").forEach((button) => button.addEventListener("click", () => exportCsv(button.dataset.export)));
@@ -148,6 +155,10 @@ async function initializeSession() {
     const data = await response.json();
     if (!response.ok || data.ok === false) throw new Error(data.message || "Config failed");
     store.config = { ...store.config, ...data.config };
+    if (store.config.inboundAppUrl) {
+      $("#inbound-app-link").href = store.config.inboundAppUrl;
+      $("#inbound-app-link").hidden = false;
+    }
     store.adminPermissions = data.permissions || [];
     $("#login-gate").classList.remove("active");
     const activePage = $(".nav-stack button.active") || $(".nav-stack button");
@@ -180,7 +191,7 @@ function canOpenAdminPage(page) {
 
 async function refreshAll() {
   setSyncState("Syncing");
-  await Promise.allSettled([loadProducts(), loadOrders(), loadCustomers(), loadPicker(), loadReturns()]);
+  await Promise.allSettled([loadProducts(), loadOrders(), loadCustomers(), loadPicker(), loadReturns(), loadInboundOrders()]);
   await loadInventory();
   await loadWarehouses();
   if (canOpenAdminPage("user-create")) await loadCreatedUsers();
@@ -218,6 +229,11 @@ async function loadPicker() {
 
 async function loadReturns() {
   await loadRows("returns", store.config.returnsEndpoint, normalizeReturn, ["/returns/pick-list"]);
+  renderAll();
+}
+
+async function loadInboundOrders() {
+  await loadRows("inboundOrders", store.config.inboundOrdersEndpoint, normalizeOrder);
   renderAll();
 }
 
@@ -348,6 +364,7 @@ function renderAll() {
   renderInventory();
   renderCreatedUsers();
   renderShiprocket();
+  renderInboundOrders();
   renderDashboardLists();
   renderOperations();
   renderOpsConfig();
@@ -508,6 +525,19 @@ function renderShiprocket() {
     [statusPill(item.courierStatus || item.status), "Courier status"],
     [item.customer, item.phone || "Customer"],
   ])).join("") : emptyState("Shiprocket rows orders/courier endpoint connect hone ke baad dikhenge.");
+}
+
+function renderInboundOrders() {
+  const rows = filtered(store.inboundOrders, "orders");
+  const table = $("#inbound-orders-table");
+  if (!table) return;
+  table.innerHTML = rows.length ? rows.slice(0, 300).map((item) => rowHtml("orders", item, [
+    [item.orderId, `Order ID / ${item.date || "No date"}`],
+    [item.customer, item.phone || "Customer"],
+    [`Rs. ${formatNumber(item.total)}`, "20% discount applied"],
+    [item.paymentStatus || "pending", `${item.paymentMethod || "payment"} / invoice ${item.invoiceNumber || "-"}`],
+    [item.status, "Local handoff / No Shiprocket"],
+  ])).join("") : emptyState("No inbound customer orders yet.", store.errors.inboundOrders);
 }
 
 function renderCreatedUsers() {
@@ -837,7 +867,7 @@ function accessUserEditorHtml(item) {
     <div class="option-row">
       <label>User type
         <select name="role">
-          ${["admin", "manager", "picker"].map((role) => `<option value="${role}" ${item.role === role ? "selected" : ""}>${escapeHtml(role)}</option>`).join("")}
+          ${["admin", "manager", "picker", "inbound_customer"].map((role) => `<option value="${role}" ${item.role === role ? "selected" : ""}>${escapeHtml(role.replaceAll("_", " "))}</option>`).join("")}
         </select>
       </label>
       <label>Status
@@ -1125,6 +1155,9 @@ function normalizeOrder(item, index = 0) {
     date: dateKey(text(item, ["created_at", "createdAt", "date", "ordered_at"])),
     time: timeKey(text(item, ["created_at", "createdAt", "date", "ordered_at"])),
     reason: text(item, ["reason", "cancel_reason"]),
+    invoiceNumber: text(item.invoice, ["invoice_number", "invoiceNumber"]),
+    paymentMethod: text(item.payment, ["method", "gateway"]),
+    paymentStatus: text(item.payment, ["status"]),
   };
 }
 

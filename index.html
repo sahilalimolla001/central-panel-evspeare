@@ -47,6 +47,7 @@
           <button type="button" data-page="content">Website/App Edit</button>
           <button type="button" data-page="ops-config">Warehouse Ops Config</button>
           <button type="button" data-page="automation">Automation</button>
+          <button type="button" data-page="inbound-customers">Inbound Customers</button>
         </nav>
 
         <div class="sync-card">
@@ -66,6 +67,7 @@
           <div class="top-actions">
             <a href="https://www.evspeare.shop/" target="_blank" rel="noreferrer">Open App</a>
             <a href="https://evsphere-warehouse-mobile-production.up.railway.app" target="_blank" rel="noreferrer">Open Picker</a>
+            <a id="inbound-app-link" href="#" target="_blank" rel="noreferrer" hidden>Open Inbound App</a>
             <a href="https://evsphere-warehouse-backend-production.up.railway.app/users" target="_blank" rel="noreferrer">Warehouse Login</a>
           </div>
         </header>
@@ -212,6 +214,20 @@
           </div>
         </section>
 
+        <section class="page" data-page-panel="inbound-customers">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <span>Dedicated retail channel</span>
+                <h2>Inbound customer orders, payments and invoices</h2>
+              </div>
+              <button type="button" data-action="load-inbound-orders">Refresh</button>
+            </div>
+            <p class="panel-copy">Every inbound order is pushed to its mapped warehouse with the fixed 20% discount and local fulfilment; Shiprocket is not used.</p>
+            <div class="data-table" id="inbound-orders-table"></div>
+          </section>
+        </section>
+
         <section class="page" data-page-panel="pickers">
           <div class="panel">
             <div class="panel-head">
@@ -311,6 +327,7 @@
                       <option value="admin">Admin</option>
                       <option value="manager">Warehouse Manager</option>
                       <option value="picker">Picker</option>
+                      <option value="inbound_customer">Inbound Customer</option>
                     </select>
                   </label>
                   <label>
