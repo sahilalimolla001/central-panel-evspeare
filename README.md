@@ -31,19 +31,19 @@ Set these environment variables in your hosting provider:
 - `BACKEND_API_URL`
 - `BACKEND_BEARER_TOKEN` if protected backend endpoints need a token
 - `WAREHOUSE_ID` optional default warehouse
-- `PRODUCTS_ENDPOINT`
-- `ORDERS_ENDPOINT`
-- `CUSTOMERS_ENDPOINT`
-- `PICKER_ORDERS_ENDPOINT`
-- `RETURNS_ENDPOINT`
-- `INVENTORY_ENDPOINT`
-- `UPDATE_ENDPOINT`
+- `PRODUCTS_ENDPOINT` optional, default `/central-panel/products`
+- `ORDERS_ENDPOINT` optional, default `/central-panel/orders`
+- `CUSTOMERS_ENDPOINT` optional, default `/central-panel/customers`
+- `PICKER_ORDERS_ENDPOINT` optional, default `/central-panel/picker-orders`
+- `RETURNS_ENDPOINT` optional, default `/central-panel/returns`
+- `INVENTORY_ENDPOINT` optional, default `/central-panel/inventory`
+- `UPDATE_ENDPOINT` optional central editor storage endpoint, default `/central-panel/update`
 - `INBOUND_ORDERS_ENDPOINT` optional warehouse inbound order feed, default `/central-panel/inbound-orders`
 - `INBOUND_APP_URL` optional deployed inbound customer storefront link shown in the panel
 
 The frontend does not show API settings. It logs in through `/api/admin/login` and uses the server-side proxy `/api/admin/proxy`.
 
-For real warehouse user creation, set `BACKEND_BEARER_TOKEN` to the same value as the warehouse backend `INTEGRATION_API_KEY`. Then `/api/admin/users` syncs users into the warehouse database through `/api/central-panel/users`.
+Set `BACKEND_BEARER_TOKEN` to the same value as the warehouse backend `INTEGRATION_API_KEY`. The dashboard data feeds, editor settings and `/api/admin/users` then sync through the protected warehouse central-panel APIs.
 
 Create customers with the `Inbound Customer` role and map a warehouse. Those credentials log into the dedicated `inbound-customer-app-source` app; orders receive a server-enforced 20% discount and appear in the central `Inbound Customers` page.
 

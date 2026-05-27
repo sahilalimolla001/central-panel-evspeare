@@ -2,12 +2,12 @@ const defaults = {
   websiteUrl: "https://www.evspeare.shop",
   pickerUrl: "https://evsphere-warehouse-mobile-production.up.railway.app",
   backendApi: "https://evsphere-warehouse-backend-production.up.railway.app/api",
-  productsEndpoint: "https://www.evspeare.shop/api/mobile/products",
-  ordersEndpoint: "https://www.evspeare.shop/api/mobile/orders",
-  customersEndpoint: "/customers",
-  pickerOrdersEndpoint: "/pick-list",
-  returnsEndpoint: "/returns/pick-list",
-  inventoryEndpoint: "/inventory",
+  productsEndpoint: "/central-panel/products",
+  ordersEndpoint: "/central-panel/orders",
+  customersEndpoint: "/central-panel/customers",
+  pickerOrdersEndpoint: "/central-panel/picker-orders",
+  returnsEndpoint: "/central-panel/returns",
+  inventoryEndpoint: "/central-panel/inventory",
   updateEndpoint: "/central-panel/update",
   inboundOrdersEndpoint: "/central-panel/inbound-orders",
   itemNotFoundEndpoint: "/central-panel/item-not-found",
@@ -27,6 +27,7 @@ const store = {
   createdUsers: [],
   inboundOrders: [],
   itemNotFoundReports: [],
+  editorSettings: [],
   warehouses: [],
   activeTab: "all",
   editing: null,
@@ -167,6 +168,7 @@ async function initializeSession() {
     $("#login-gate").classList.remove("active");
     const activePage = $(".nav-stack button.active") || $(".nav-stack button");
     if (activePage) openPage(activePage.dataset.page, activePage.textContent.trim());
+    await loadEditorSettings();
     await refreshAll();
     startAutoRefresh();
   } catch (error) {
@@ -244,6 +246,20 @@ async function loadInboundOrders() {
 async function loadItemNotFound() {
   await loadRows("itemNotFoundReports", store.config.itemNotFoundEndpoint, normalizeItemNotFound);
   renderAll();
+}
+
+async function loadEditorSettings() {
+  try {
+    const payload = await apiGet("/central-panel/settings");
+    store.editorSettings = Array.isArray(payload.settings) ? payload.settings : [];
+    store.editorSettings.forEach((setting) => applyEditorValues(setting.section, setting.updates));
+    delete store.errors.editorSettings;
+  } catch (error) {
+    store.editorSettings = [];
+    store.errors.editorSettings = error.message;
+  }
+  renderEditLog();
+  renderOpsConfig();
 }
 
 async function loadInventory() {
@@ -399,6 +415,7 @@ function renderMetrics() {
     ["Total inventory", inventoryQty || "--", "Warehouse-wise stock", "green"],
     ["Inventory value", `Rs. ${formatNumber(inventoryValue)}`, "Stock value", "green"],
     ["Out of stock", visibleInventory.filter((item) => item.stock <= 0).length, "Needs refill", "rose"],
+    ["Item not found", filtered(store.itemNotFoundReports, "itemNotFound").length, "Picker reported shortage", "rose"],
     ["Sync", store.lastSync ? store.lastSync.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "--", "Last update", "blue"],
   ];
   $("#status-metrics").innerHTML = rows.map(([label, value, help, color]) => `
@@ -592,10 +609,12 @@ function renderOperations() {
   const lowStock = filtered(store.inventory, "inventory").filter((item) => Number(item.stock || 0) <= 1);
   const pendingOrders = filtered(store.orders, "orders").filter((item) => tabMatches(item.status, "pending"));
   const returns = filtered(store.returns, "returns");
+  const missingItems = filtered(store.itemNotFoundReports, "itemNotFound");
   const alerts = [
     lowStock.length ? ["Low stock", `${lowStock.length} SKU at 1 qty or less`, "Inventory"] : null,
     pendingOrders.length ? ["Pending orders", `${pendingOrders.length} orders need picking`, "Orders"] : null,
     returns.length ? ["Returns", `${returns.length} return rows need action`, "Returns"] : null,
+    missingItems.length ? ["Item not found", `${missingItems.length} picker shortages reported`, "Review"] : null,
     Object.keys(store.errors).length ? ["Connection", `${Object.keys(store.errors).length} modules partial`, "Check"] : null,
   ].filter(Boolean);
   $("#ops-alerts").innerHTML = alerts.length ? alerts.map(([title, body, side]) => miniCard(title, body, side)).join("") : miniCard("All clear", "No operational exceptions in current filter", "OK");
@@ -621,6 +640,7 @@ function renderOperations() {
     ["Pickers", store.pickerOrders.length ? "Online" : "Protected", `${store.pickerOrders.length} rows`],
     ["Users", store.createdUsers.length ? "Online" : "Ready", `${store.createdUsers.length} users`],
     ["Inventory", store.inventory.length ? "Online" : "Catalog fallback", `${store.inventory.length} rows`],
+    ["Editor config", store.editorSettings.length ? "Online" : "Ready", `${store.editorSettings.length} saved sections`],
   ];
   const node = $("#system-health");
   if (node) node.innerHTML = health.map(([title, body, side]) => miniCard(title, body, side)).join("");
@@ -830,12 +850,15 @@ async function saveEditor(section) {
   const data = Object.fromEntries(new FormData(form).entries());
   saveLocalDraft(`editor:${section}`, data);
   try {
-    await apiPost(store.config.updateEndpoint, { type: "editor", section, updates: data });
+    const response = await apiPost(store.config.updateEndpoint, { type: "editor", section, updates: data });
+    const setting = response.setting || { section, updates: data, updated_at: new Date().toISOString() };
+    store.editorSettings = [setting, ...store.editorSettings.filter((item) => item.section !== section)];
     toast(`${section} settings saved to backend.`);
   } catch {
     toast(`${section} draft saved locally. Backend update endpoint connect karein.`);
   }
   renderEditLog();
+  renderOpsConfig();
 }
 
 async function createAccessUser() {
@@ -970,9 +993,15 @@ function collectionFor(type) {
 function hydrateEditors() {
   $$("[data-editor]").forEach((form) => {
     const saved = loadLocalDraft(`editor:${form.dataset.editor}`);
-    Object.entries(saved).forEach(([key, value]) => {
-      if (form.elements[key]) form.elements[key].value = value;
-    });
+    applyEditorValues(form.dataset.editor, saved);
+  });
+}
+
+function applyEditorValues(section, updates) {
+  const form = $(`[data-editor="${section}"]`);
+  if (!form || !updates || typeof updates !== "object") return;
+  Object.entries(updates).forEach(([key, value]) => {
+    if (form.elements[key]) form.elements[key].value = value;
   });
 }
 
@@ -1064,12 +1093,17 @@ function setSyncState(state) {
 }
 
 function renderEditLog() {
+  if (store.editorSettings.length) {
+    $("#edit-log").innerHTML = store.editorSettings.slice(0, 8).map((setting) => miniCard(setting.section, "Backend saved", dateKey(setting.updated_at) || "Live")).join("");
+    return;
+  }
   const keys = Object.keys(localStorage).filter((key) => key.startsWith("evspeareDraft:"));
   $("#edit-log").innerHTML = keys.length ? keys.slice(-8).reverse().map((key) => miniCard(key.replace("evspeareDraft:", ""), "Local draft saved", "")).join("") : emptyState("No edits yet.");
 }
 
 function renderOpsConfig() {
-  const config = loadLocalDraft("editor:ops-config");
+  const backendSetting = store.editorSettings.find((setting) => setting.section === "ops-config");
+  const config = backendSetting?.updates || loadLocalDraft("editor:ops-config");
   const fallback = {
     shiftRequired: "Enabled",
     pickMethod: "Bin first",
@@ -1178,7 +1212,7 @@ function normalizeOrder(item, index = 0) {
     location: text(item, ["location", "city", "area"]) || text(item.address, ["city", "area", "full"]),
     customer: text(item, ["customer_name", "name"]) || text(item.customer, ["name"]) || "Customer",
     phone: text(item, ["phone", "mobile", "customer_phone"]) || text(item.customer, ["phone", "mobile"]),
-    address: text(item, ["address", "delivery_address"]) || text(item.address, ["line1", "full"]),
+    address: text(item, ["address", "delivery_address", "customer_address"]) || text(item.address, ["line1", "full"]),
     status: text(item, ["status", "order_status", "fulfillment_status"]) || "pending",
     total: number(item, ["total", "amount", "grand_total"]) || number(item.amounts, ["total"]),
     items: Array.isArray(item.items) ? item.items.length : number(item, ["item_count", "items_count"]),
@@ -1209,8 +1243,8 @@ function normalizePicker(item, index = 0) {
   const order = normalizeOrder(item, index);
   return {
     ...order,
-    picker: text(item, ["picker_name", "picker", "staff_name"]) || text(item.user, ["name"]),
-    warehouse: text(item, ["warehouse", "warehouse_code"]) || text(item.warehouse, ["code", "name"]),
+    picker: text(item, ["picker_name", "staff_name"]) || text(item.picker, ["name", "full_name"]) || text(item.user, ["name"]),
+    warehouse: text(item, ["warehouse_code"]) || text(item.warehouse, ["code", "name"]),
   };
 }
 
@@ -1225,7 +1259,7 @@ function normalizeReturn(item, index = 0) {
     phone: text(item, ["phone", "mobile"]) || text(item.customer, ["phone", "mobile"]),
     status: text(item, ["status"]) || "return",
     reason: text(item, ["reason", "note", "details"]) || "Return",
-    createdAt: text(item, ["created_at", "createdAt", "date"]),
+    createdAt: text(item, ["created_at", "requested_at", "createdAt", "date"]),
   };
 }
 
@@ -1270,7 +1304,7 @@ function normalizeInventory(item, index = 0) {
     id: String(item.id || product.id || product.sku || index),
     name: text(product, ["name", "title", "product_name"]) || `Inventory ${index + 1}`,
     sku: text(product, ["sku", "barcode", "ean"]),
-    warehouseId: text(item, ["warehouse_id", "warehouseId", "warehouse", "warehouse_code"]) || text(item.warehouse, ["id", "code", "name"]),
+    warehouseId: text(item, ["warehouse_id", "warehouseId", "warehouse", "warehouse_code"]) || text(item.warehouse, ["id", "code", "name"]) || text(item.location?.warehouse, ["id", "code", "name"]),
     location: text(item, ["location", "location_code", "full_code", "barcode", "bin"]) || text(item.location, ["full_code", "barcode", "code"]),
     image: firstImage(product),
     stock,
