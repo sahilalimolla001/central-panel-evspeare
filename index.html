@@ -48,6 +48,7 @@
           <button type="button" data-page="ops-config">Warehouse Ops Config</button>
           <button type="button" data-page="automation">Automation</button>
           <button type="button" data-page="inbound-customers">Inbound Customers</button>
+          <button type="button" data-page="item-not-found">Item Not Found</button>
         </nav>
 
         <div class="sync-card">
@@ -225,6 +226,23 @@
             </div>
             <p class="panel-copy">Every inbound order is pushed to its mapped warehouse with the fixed 20% discount and local fulfilment; Shiprocket is not used.</p>
             <div class="data-table" id="inbound-orders-table"></div>
+          </section>
+        </section>
+
+        <section class="page" data-page-panel="item-not-found">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <span>Picker exception audit</span>
+                <h2>Item Not Found reports and stock deductions</h2>
+              </div>
+              <div class="button-row">
+                <button type="button" data-export="itemNotFound">Export CSV</button>
+                <button type="button" data-action="load-item-not-found">Refresh</button>
+              </div>
+            </div>
+            <p class="panel-copy">Picker ne INF press karne par warehouse, bin, product, value aur deducted stock yahan live record hota hai.</p>
+            <div class="data-table" id="item-not-found-table"></div>
           </section>
         </section>
 

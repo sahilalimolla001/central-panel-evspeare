@@ -23,6 +23,7 @@ const config = {
   inventoryEndpoint: process.env.INVENTORY_ENDPOINT || "/inventory",
   updateEndpoint: process.env.UPDATE_ENDPOINT || "/central-panel/update",
   inboundOrdersEndpoint: process.env.INBOUND_ORDERS_ENDPOINT || "/central-panel/inbound-orders",
+  itemNotFoundEndpoint: process.env.ITEM_NOT_FOUND_ENDPOINT || "/central-panel/item-not-found",
 };
 
 const adminId = process.env.CENTRAL_ADMIN_ID || "admin";

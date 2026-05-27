@@ -10,6 +10,7 @@ const defaults = {
   inventoryEndpoint: "/inventory",
   updateEndpoint: "/central-panel/update",
   inboundOrdersEndpoint: "/central-panel/inbound-orders",
+  itemNotFoundEndpoint: "/central-panel/item-not-found",
   warehouseId: "",
   autoRefreshSeconds: "30",
 };
@@ -25,6 +26,7 @@ const store = {
   inventory: [],
   createdUsers: [],
   inboundOrders: [],
+  itemNotFoundReports: [],
   warehouses: [],
   activeTab: "all",
   editing: null,
@@ -43,6 +45,7 @@ const rolePermissionCatalogs = {
     ["panel_tracking", "Order Tracking"], ["panel_content", "Website / App Edit"],
     ["panel_ops_config", "Warehouse Ops Config"], ["panel_automation", "Automation"],
     ["panel_inbound_customers", "Inbound Customers"],
+    ["panel_item_not_found", "Item Not Found"],
   ],
   manager: [
     ["dashboard", "Dashboard"], ["products", "Products"], ["suppliers", "Suppliers"], ["stock_in", "Stock In"],
@@ -117,6 +120,7 @@ function bindActions() {
   $$("[data-action='load-picker']").forEach((button) => button.addEventListener("click", loadPicker));
   $$("[data-action='load-returns']").forEach((button) => button.addEventListener("click", loadReturns));
   $$("[data-action='load-inbound-orders']").forEach((button) => button.addEventListener("click", loadInboundOrders));
+  $$("[data-action='load-item-not-found']").forEach((button) => button.addEventListener("click", loadItemNotFound));
   $$("[data-action='load-inventory']").forEach((button) => button.addEventListener("click", loadInventory));
   $$("[data-save-editor]").forEach((button) => button.addEventListener("click", () => saveEditor(button.dataset.saveEditor)));
   $$("[data-export]").forEach((button) => button.addEventListener("click", () => exportCsv(button.dataset.export)));
@@ -191,7 +195,7 @@ function canOpenAdminPage(page) {
 
 async function refreshAll() {
   setSyncState("Syncing");
-  await Promise.allSettled([loadProducts(), loadOrders(), loadCustomers(), loadPicker(), loadReturns(), loadInboundOrders()]);
+  await Promise.allSettled([loadProducts(), loadOrders(), loadCustomers(), loadPicker(), loadReturns(), loadInboundOrders(), loadItemNotFound()]);
   await loadInventory();
   await loadWarehouses();
   if (canOpenAdminPage("user-create")) await loadCreatedUsers();
@@ -234,6 +238,11 @@ async function loadReturns() {
 
 async function loadInboundOrders() {
   await loadRows("inboundOrders", store.config.inboundOrdersEndpoint, normalizeOrder);
+  renderAll();
+}
+
+async function loadItemNotFound() {
+  await loadRows("itemNotFoundReports", store.config.itemNotFoundEndpoint, normalizeItemNotFound);
   renderAll();
 }
 
@@ -365,6 +374,7 @@ function renderAll() {
   renderCreatedUsers();
   renderShiprocket();
   renderInboundOrders();
+  renderItemNotFound();
   renderDashboardLists();
   renderOperations();
   renderOpsConfig();
@@ -538,6 +548,19 @@ function renderInboundOrders() {
     [item.paymentStatus || "pending", `${item.paymentMethod || "payment"} / invoice ${item.invoiceNumber || "-"}`],
     [item.status, "Local handoff / No Shiprocket"],
   ])).join("") : emptyState("No inbound customer orders yet.", store.errors.inboundOrders);
+}
+
+function renderItemNotFound() {
+  const rows = filtered(store.itemNotFoundReports, "itemNotFound");
+  const table = $("#item-not-found-table");
+  if (!table) return;
+  table.innerHTML = rows.length ? rows.slice(0, 500).map((item) => rowHtml("itemNotFound", item, [
+    [item.orderId, item.createdAt || "No date"],
+    [item.sku, item.product],
+    [`${item.warehouse} / ${item.location}`, `Picker: ${item.picker}`],
+    [`Qty ${item.quantity}`, `Stock minus ${item.stockDeducted}`],
+    [`Rs. ${formatNumber(item.price)}`, `Value Rs. ${formatNumber(item.amount)}`],
+  ])).join("") : emptyState("Abhi tak koi Item Not Found report nahi hai.", store.errors.itemNotFoundReports);
 }
 
 function renderCreatedUsers() {
@@ -1095,6 +1118,7 @@ function exportCsv(key) {
     products: store.products,
     inventory: store.inventory,
     shiprocket: shiprocketRows(),
+    itemNotFound: store.itemNotFoundReports,
   }[key] || [];
   if (!rows.length) {
     toast("Export ke liye rows available nahi hain.");
@@ -1254,6 +1278,24 @@ function normalizeInventory(item, index = 0) {
   };
 }
 
+function normalizeItemNotFound(item, index = 0) {
+  return {
+    id: String(item.id || index),
+    orderId: text(item, ["order_number", "order_id"]),
+    product: text(item, ["product_name", "product"]) || "Product",
+    sku: text(item, ["sku"]),
+    quantity: number(item, ["quantity"]),
+    stockDeducted: number(item, ["stock_deducted_quantity"]),
+    price: number(item, ["unit_price"]),
+    amount: number(item, ["amount"]),
+    warehouseId: text(item, ["warehouse_id"]),
+    warehouse: text(item, ["warehouse"]) || text(item, ["warehouse_id"]),
+    location: text(item, ["location"]),
+    picker: text(item, ["picker"]),
+    createdAt: text(item, ["created_at", "createdAt"]),
+  };
+}
+
 function firstImage(item) {
   if (!item || typeof item !== "object") return "";
   const direct = text(item, ["image", "image_url", "imageUrl", "featured_image", "featuredImage"]);
@@ -1278,7 +1320,7 @@ function resolveMediaUrl(value) {
 function asArray(payload) {
   if (Array.isArray(payload)) return payload;
   if (!payload || typeof payload !== "object") return [];
-  for (const key of ["products", "orders", "customers", "users", "warehouses", "items", "returns", "data", "results", "records"]) {
+  for (const key of ["products", "orders", "customers", "users", "warehouses", "items", "returns", "reports", "data", "results", "records"]) {
     if (Array.isArray(payload[key])) return payload[key];
   }
   return [];
