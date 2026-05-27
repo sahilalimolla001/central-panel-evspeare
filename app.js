@@ -764,10 +764,16 @@ async function saveAccessUser() {
   const updates = Object.fromEntries(formData.entries());
   updates.permissions = formData.getAll("permissions");
   updates.id = store.editing.id;
+  updates.originalUserId = store.editing.item.userId;
   if (!updates.userId || !updates.warehouseId) {
     toast("User ID aur warehouse ID required hai.");
     return;
   }
+  if (updates.password && updates.password !== updates.confirmPassword) {
+    toast("New password aur confirm password match nahi kar raha.");
+    return;
+  }
+  delete updates.confirmPassword;
   if (!updates.password) delete updates.password;
   try {
     const response = await adminRequest("/api/admin/users", "PATCH", updates);
@@ -877,6 +883,7 @@ function accessUserEditorHtml(item) {
       </label>
       <label>User ID / Email<input name="userId" type="text" value="${escapeHtml(item.userId)}" required /></label>
       <label>New password<input name="password" type="password" autocomplete="new-password" placeholder="Leave blank to keep current" /></label>
+      <label>Confirm new password<input name="confirmPassword" type="password" autocomplete="new-password" placeholder="Repeat new password" /></label>
       <label>Full name<input name="name" value="${escapeHtml(item.name || "")}" /></label>
       <label>Phone<input name="phone" inputmode="tel" value="${escapeHtml(item.phone || "")}" /></label>
       <label>Warehouse

@@ -161,13 +161,16 @@ async function handleUsersApi(request, response) {
 
   if (request.method === "PUT" || request.method === "PATCH") {
     const body = await readJson(request);
-    const index = db.users.findIndex((item) => String(item.id) === String(body.id) || item.userId.toLowerCase() === String(body.userId || "").toLowerCase());
+    const originalUserId = String(body.originalUserId || body.userId || "").trim().toLowerCase();
+    const index = db.users.findIndex((item) => String(item.id) === String(body.id) || item.userId.toLowerCase() === originalUserId);
     if (index < 0) {
       sendJson(response, 404, { ok: false, message: "User not found" });
       return;
     }
     const updates = { ...body };
     delete updates.password;
+    delete updates.confirmPassword;
+    delete updates.originalUserId;
     if (body.password) updates.passwordHash = hashPassword(body.password, db.users[index].salt);
     db.users[index] = { ...db.users[index], ...updates, updatedAt: new Date().toISOString() };
     writeDb(db);
