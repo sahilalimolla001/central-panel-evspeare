@@ -24,6 +24,7 @@ const config = {
   updateEndpoint: process.env.UPDATE_ENDPOINT || "/central-panel/update",
   inboundOrdersEndpoint: process.env.INBOUND_ORDERS_ENDPOINT || "/central-panel/inbound-orders",
   itemNotFoundEndpoint: process.env.ITEM_NOT_FOUND_ENDPOINT || "/central-panel/item-not-found",
+  cashSettlementsEndpoint: process.env.CASH_SETTLEMENTS_ENDPOINT || "/central-panel/cash-settlements",
 };
 
 const adminId = process.env.CENTRAL_ADMIN_ID || "admin";
@@ -348,7 +349,9 @@ function authorizedAdmin(request) {
 }
 
 function adminCanOpen(admin, page) {
-  return admin.permissions.includes("*") || admin.permissions.includes(`panel_${String(page).replaceAll("-", "_")}`);
+  if (admin.permissions.includes("*")) return true;
+  const permission = `panel_${String(page).replaceAll("-", "_")}`;
+  return admin.permissions.includes(permission) || (page === "cash-settlements" && admin.permissions.includes("panel_cash_tracker"));
 }
 
 function createAdminToken(admin = { userId: adminId, permissions: ["*"] }) {

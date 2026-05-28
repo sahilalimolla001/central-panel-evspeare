@@ -48,6 +48,7 @@
           <button type="button" data-page="ops-config">Warehouse Ops Config</button>
           <button type="button" data-page="automation">Automation</button>
           <button type="button" data-page="inbound-customers">Inbound Customers</button>
+          <button type="button" data-page="cash-settlements">Cash Settlements</button>
           <button type="button" data-page="item-not-found">Item Not Found</button>
         </nav>
 
@@ -243,6 +244,25 @@
             </div>
             <p class="panel-copy">Picker ne INF press karne par warehouse, bin, product, value aur deducted stock yahan live record hota hai.</p>
             <div class="data-table" id="item-not-found-table"></div>
+          </section>
+        </section>
+
+        <section class="page" data-page-panel="cash-settlements">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <span>Cash settlement audit</span>
+                <h2>Warehouse-wise settled cash with date and time</h2>
+              </div>
+              <div class="button-row">
+                <button type="button" data-export="cashSettlements">Export CSV</button>
+                <button type="button" data-action="load-cash-settlements">Refresh</button>
+              </div>
+            </div>
+            <div class="metric-grid compact-metrics" id="cash-settlement-metrics"></div>
+            <p class="panel-copy">Cash Tracker se bank settlement confirm hote hi yahan warehouse, amount, bank aur timestamp record dikhega.</p>
+            <div class="data-table" id="cash-settlement-summary"></div>
+            <div class="data-table mt-3" id="cash-settlements-table"></div>
           </section>
         </section>
 

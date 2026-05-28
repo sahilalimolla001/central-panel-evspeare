@@ -11,6 +11,7 @@ const defaults = {
   updateEndpoint: "/central-panel/update",
   inboundOrdersEndpoint: "/central-panel/inbound-orders",
   itemNotFoundEndpoint: "/central-panel/item-not-found",
+  cashSettlementsEndpoint: "/central-panel/cash-settlements",
   warehouseId: "",
   autoRefreshSeconds: "30",
 };
@@ -27,6 +28,8 @@ const store = {
   createdUsers: [],
   inboundOrders: [],
   itemNotFoundReports: [],
+  cashSettlements: [],
+  cashSettlementSummary: [],
   editorSettings: [],
   warehouses: [],
   activeTab: "all",
@@ -46,6 +49,8 @@ const rolePermissionCatalogs = {
     ["panel_tracking", "Order Tracking"], ["panel_content", "Website / App Edit"],
     ["panel_ops_config", "Warehouse Ops Config"], ["panel_automation", "Automation"],
     ["panel_inbound_customers", "Inbound Customers"],
+    ["panel_cash_tracker", "Cash Tracker"],
+    ["panel_cash_settlements", "Cash Settlements"],
     ["panel_item_not_found", "Item Not Found"],
   ],
   manager: [
@@ -54,7 +59,7 @@ const rolePermissionCatalogs = {
     ["picker_ops", "Picker Ops"], ["pick_transfer", "Pick Transfer"], ["shiprocket", "Shiprocket"],
     ["shipping_status", "Shipping Status"], ["returns", "Customer Returns"], ["refunds", "Payment Refunds"],
     ["money_tracking", "Money Tracking"], ["invoices", "Invoices"], ["reports", "Reports"],
-    ["inbound_customers", "Inbound Customers"],
+    ["inbound_customers", "Inbound Customers"], ["cash_tracker", "Cash Tracker"], ["cash_settlements", "Cash Settlements"],
   ],
   picker: [
     ["picker_home", "Home"], ["picker_pick", "Pick"], ["picker_ship", "Ship"], ["picker_returns", "Return"],
@@ -122,6 +127,7 @@ function bindActions() {
   $$("[data-action='load-returns']").forEach((button) => button.addEventListener("click", loadReturns));
   $$("[data-action='load-inbound-orders']").forEach((button) => button.addEventListener("click", loadInboundOrders));
   $$("[data-action='load-item-not-found']").forEach((button) => button.addEventListener("click", loadItemNotFound));
+  $$("[data-action='load-cash-settlements']").forEach((button) => button.addEventListener("click", loadCashSettlements));
   $$("[data-action='load-inventory']").forEach((button) => button.addEventListener("click", loadInventory));
   $$("[data-save-editor]").forEach((button) => button.addEventListener("click", () => saveEditor(button.dataset.saveEditor)));
   $$("[data-export]").forEach((button) => button.addEventListener("click", () => exportCsv(button.dataset.export)));
@@ -192,12 +198,14 @@ function openPage(page, title) {
 }
 
 function canOpenAdminPage(page) {
-  return store.adminPermissions.includes("*") || store.adminPermissions.includes(`panel_${String(page).replaceAll("-", "_")}`);
+  if (store.adminPermissions.includes("*")) return true;
+  const permission = `panel_${String(page).replaceAll("-", "_")}`;
+  return store.adminPermissions.includes(permission) || (page === "cash-settlements" && store.adminPermissions.includes("panel_cash_tracker"));
 }
 
 async function refreshAll() {
   setSyncState("Syncing");
-  await Promise.allSettled([loadProducts(), loadOrders(), loadCustomers(), loadPicker(), loadReturns(), loadInboundOrders(), loadItemNotFound()]);
+  await Promise.allSettled([loadProducts(), loadOrders(), loadCustomers(), loadPicker(), loadReturns(), loadInboundOrders(), loadItemNotFound(), loadCashSettlements()]);
   await loadInventory();
   await loadWarehouses();
   if (canOpenAdminPage("user-create")) await loadCreatedUsers();
@@ -245,6 +253,20 @@ async function loadInboundOrders() {
 
 async function loadItemNotFound() {
   await loadRows("itemNotFoundReports", store.config.itemNotFoundEndpoint, normalizeItemNotFound);
+  renderAll();
+}
+
+async function loadCashSettlements() {
+  try {
+    const payload = await apiGet(store.config.cashSettlementsEndpoint);
+    store.cashSettlements = asArray(payload.settlements || payload).map(normalizeCashSettlement);
+    store.cashSettlementSummary = Array.isArray(payload.summary) ? payload.summary.map(normalizeCashSettlementSummary) : cashSettlementSummaryFromRows();
+    delete store.errors.cashSettlements;
+  } catch (error) {
+    store.cashSettlements = [];
+    store.cashSettlementSummary = [];
+    store.errors.cashSettlements = error.message;
+  }
   renderAll();
 }
 
@@ -391,6 +413,7 @@ function renderAll() {
   renderShiprocket();
   renderInboundOrders();
   renderItemNotFound();
+  renderCashSettlements();
   renderDashboardLists();
   renderOperations();
   renderOpsConfig();
@@ -580,6 +603,38 @@ function renderItemNotFound() {
   ])).join("") : emptyState("Abhi tak koi Item Not Found report nahi hai.", store.errors.itemNotFoundReports);
 }
 
+function renderCashSettlements() {
+  const rows = filtered(store.cashSettlements, "cashSettlements");
+  const summaryRows = cashSettlementSummaryForFilter();
+  const total = rows.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const metrics = $("#cash-settlement-metrics");
+  if (metrics) {
+    metrics.innerHTML = [
+      ["Total settled", `Rs. ${formatNumber(total)}`, `${rows.length} settlement entries`],
+      ["Warehouses", summaryRows.length, "Warehouse-wise records"],
+      ["Latest", rows[0]?.createdAt ? formatDateTime(rows[0].createdAt) : "-", rows[0]?.warehouse || rows[0]?.warehouseId || "No settlement"],
+    ].map(([label, value, help]) => `<article class="metric-card blue"><span>${label}</span><strong>${escapeHtml(value)}</strong><span>${escapeHtml(help)}</span></article>`).join("");
+  }
+  const summary = $("#cash-settlement-summary");
+  if (summary) {
+    summary.innerHTML = summaryRows.length ? summaryRows.map((item) => rowHtml("cashSettlements", item, [
+      [item.warehouse || item.warehouseId || "-", item.warehouseName || "Warehouse"],
+      [`Rs. ${formatNumber(item.totalSettled)}`, "Total settled"],
+      [item.count || 0, "Entries"],
+      [formatDateTime(item.lastSettledAt), "Last settlement"],
+    ])).join("") : emptyState("No warehouse cash settlement summary yet.", store.errors.cashSettlements);
+  }
+  const table = $("#cash-settlements-table");
+  if (!table) return;
+  table.innerHTML = rows.length ? rows.slice(0, 500).map((item) => rowHtml("cashSettlements", item, [
+    [formatDateTime(item.createdAt), item.transactionNumber || "Receipt"],
+    [item.warehouse || item.warehouseId || "-", item.warehouseName || "Warehouse"],
+    [`Rs. ${formatNumber(item.amount)}`, item.status || "settled"],
+    [item.bank || "-", "Bank"],
+    [item.reference || item.transactionNumber || "-", "Reference"],
+  ])).join("") : emptyState("Abhi tak cash settlement nahi hua.", store.errors.cashSettlements);
+}
+
 function renderCreatedUsers() {
   const node = $("#created-users-table");
   if (!node) return;
@@ -673,6 +728,8 @@ function populateWarehouseFilter() {
     ...store.products.map((item) => item.warehouseId || item.warehouse),
     ...store.createdUsers.map((item) => item.warehouseId || item.warehouse),
     ...store.createdUsers.flatMap((item) => (item.warehouses || []).map((warehouse) => warehouse.id || warehouse.code)),
+    ...store.cashSettlements.map((item) => item.warehouseId || item.warehouse),
+    ...store.cashSettlementSummary.map((item) => item.warehouseId || item.warehouse),
   ].filter(Boolean).map(String))].sort();
   select.innerHTML = `<option value="">All warehouses</option>${warehouses.map((id) => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`).join("")}`;
   if (warehouses.includes(current)) select.value = current;
@@ -898,6 +955,7 @@ function editableFields(type, item) {
     pickers: [["status", "Status", item.status], ["picker", "Picker", item.picker], ["warehouse", "Warehouse", item.warehouse]],
     returns: [["status", "Status", item.status], ["reason", "Reason", item.reason], ["customer", "Customer", item.customer]],
     products: [["name", "Product name", item.name], ["sku", "SKU", item.sku], ["price", "Price", item.price], ["stock", "Stock", item.stock], ["warehouseId", "Warehouse ID", item.warehouseId], ["category", "Category", item.category]],
+    cashSettlements: [["createdAt", "Date/time", formatDateTime(item.createdAt)], ["warehouse", "Warehouse", item.warehouse || item.warehouseId], ["amount", "Amount", item.amount], ["bank", "Bank", item.bank], ["reference", "Reference", item.reference], ["transactionNumber", "Receipt", item.transactionNumber]],
   };
   return common[type] || Object.entries(item).slice(0, 8).map(([key, value]) => [key, key, value]);
 }
@@ -986,6 +1044,7 @@ function collectionFor(type) {
     pickers: store.pickerOrders,
     returns: store.returns,
     products: store.products,
+    cashSettlements: store.cashSettlements,
     accessUsers: store.createdUsers,
   }[type] || [];
 }
@@ -1153,6 +1212,7 @@ function exportCsv(key) {
     inventory: store.inventory,
     shiprocket: shiprocketRows(),
     itemNotFound: store.itemNotFoundReports,
+    cashSettlements: store.cashSettlements,
   }[key] || [];
   if (!rows.length) {
     toast("Export ke liye rows available nahi hain.");
@@ -1330,6 +1390,65 @@ function normalizeItemNotFound(item, index = 0) {
   };
 }
 
+function normalizeCashSettlement(item, index = 0) {
+  return {
+    id: String(item.id || item.transactionNumber || item.transaction_number || index),
+    transactionNumber: text(item, ["transactionNumber", "transaction_number"]),
+    warehouseId: text(item, ["warehouseId", "warehouse_id"]) || text(item.warehouse, ["id"]),
+    warehouse: text(item, ["warehouseCode", "warehouse_code", "warehouse"]) || text(item.warehouse, ["code", "name"]),
+    warehouseName: text(item, ["warehouseName", "warehouse_name"]) || text(item.warehouse, ["name"]),
+    amount: number(item, ["amount", "settled_amount", "total_settled"]),
+    bank: text(item, ["bank", "reference", "gateway"]),
+    reference: text(item, ["reference", "receiptId", "receipt_id"]),
+    status: text(item, ["status"]) || "settled",
+    createdAt: text(item, ["createdAt", "created_at", "date"]),
+  };
+}
+
+function normalizeCashSettlementSummary(item, index = 0) {
+  return {
+    id: String(item.warehouse_id || item.warehouseId || item.warehouse || index),
+    warehouseId: text(item, ["warehouseId", "warehouse_id"]),
+    warehouse: text(item, ["warehouse", "warehouseCode", "warehouse_code"]) || text(item.warehouse, ["code", "name"]),
+    warehouseName: text(item, ["warehouseName", "warehouse_name"]) || text(item.warehouse, ["name"]),
+    totalSettled: number(item, ["totalSettled", "total_settled", "amount"]),
+    count: number(item, ["settlementCount", "settlement_count", "count"]),
+    lastSettledAt: text(item, ["lastSettledAt", "last_settled_at", "createdAt", "created_at"]),
+  };
+}
+
+function cashSettlementSummaryFromRows() {
+  const map = new Map();
+  store.cashSettlements.forEach((item) => {
+    const key = item.warehouseId || item.warehouse || "unassigned";
+    const current = map.get(key) || {
+      id: key,
+      warehouseId: item.warehouseId,
+      warehouse: item.warehouse,
+      warehouseName: item.warehouseName,
+      totalSettled: 0,
+      count: 0,
+      lastSettledAt: "",
+    };
+    current.totalSettled += Number(item.amount || 0);
+    current.count += 1;
+    if (!current.lastSettledAt || String(item.createdAt || "") > String(current.lastSettledAt)) current.lastSettledAt = item.createdAt;
+    map.set(key, current);
+  });
+  return Array.from(map.values());
+}
+
+function cashSettlementSummaryForFilter() {
+  const warehouse = $("#warehouse-filter").value;
+  const query = $("#global-search").value.trim().toLowerCase();
+  return store.cashSettlementSummary.filter((row) => {
+    const blob = JSON.stringify(row).toLowerCase();
+    const warehouseOk = !warehouse || String(row.warehouseId || row.warehouse || "").toLowerCase() === warehouse.toLowerCase();
+    const queryOk = !query || blob.includes(query);
+    return warehouseOk && queryOk;
+  });
+}
+
 function firstImage(item) {
   if (!item || typeof item !== "object") return "";
   const direct = text(item, ["image", "image_url", "imageUrl", "featured_image", "featuredImage"]);
@@ -1394,6 +1513,21 @@ function timeKey(value) {
   if (!Number.isNaN(date.getTime())) return date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
   const match = String(value).match(/\b\d{1,2}:\d{2}(:\d{2})?\b/);
   return match ? match[0] : "";
+}
+
+function formatDateTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime())) {
+    return date.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+  return String(value);
 }
 
 function statusLabel(value) {
