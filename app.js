@@ -56,12 +56,11 @@ const rolePermissionCatalogs = {
   manager: [
     ["dashboard", "Dashboard"], ["products", "Products"], ["suppliers", "Suppliers"], ["stock_in", "Stock In"],
     ["stock_out", "Stock Out"], ["inventory", "Inventory"], ["locations", "Locations"], ["orders", "Orders"],
-    ["picker_ops", "Picker Ops"], ["pick_transfer", "Pick Transfer"], ["shiprocket", "Shiprocket"],
+    ["support", "Support Queries"], ["picker_ops", "Picker Ops"], ["pick_transfer", "Pick Transfer"], ["shiprocket", "Shiprocket"],
     ["shipping_status", "Shipping Status"], ["returns", "Customer Returns"], ["refunds", "Payment Refunds"],
     ["money_tracking", "Money Tracking"], ["invoices", "Invoices"], ["reports", "Reports"],
     ["inbound_customers", "Inbound Customers"], ["cash_tracker", "Cash Tracker"], ["cash_settlements", "Cash Settlements"],
-    ["fast_delivery_orders", "Fast Delivery Orders"], ["coupons", "Coupons"],
-    ["support_queries", "Support Queries"], ["item_not_found", "Item Not Found"],
+    ["coupons", "Coupons"], ["users", "Users"], ["ops_config", "Ops Config"], ["settings", "Settings"],
   ],
   picker: [
     ["picker_home", "Home"], ["picker_pick", "Pick"], ["picker_ship", "Ship"], ["picker_returns", "Return"],
