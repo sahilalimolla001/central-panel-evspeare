@@ -60,6 +60,8 @@ const rolePermissionCatalogs = {
     ["shipping_status", "Shipping Status"], ["returns", "Customer Returns"], ["refunds", "Payment Refunds"],
     ["money_tracking", "Money Tracking"], ["invoices", "Invoices"], ["reports", "Reports"],
     ["inbound_customers", "Inbound Customers"], ["cash_tracker", "Cash Tracker"], ["cash_settlements", "Cash Settlements"],
+    ["fast_delivery_orders", "Fast Delivery Orders"], ["coupons", "Coupons"],
+    ["support_queries", "Support Queries"], ["item_not_found", "Item Not Found"],
   ],
   picker: [
     ["picker_home", "Home"], ["picker_pick", "Pick"], ["picker_ship", "Ship"], ["picker_returns", "Return"],
