@@ -55,10 +55,10 @@ const rolePermissionCatalogs = {
   ],
   manager: [
     ["dashboard", "Dashboard"], ["products", "Products"], ["suppliers", "Suppliers"], ["stock_in", "Stock In"],
-    ["stock_out", "Stock Out"], ["inventory", "Inventory"], ["locations", "Locations"], ["orders", "Orders"],
+    ["stock_out", "Stock Out"], ["inventory", "Inventory"], ["locations", "Locations / Warehouses"], ["orders", "Orders / Fast Delivery"],
     ["support", "Support Queries"], ["picker_ops", "Picker Ops"], ["pick_transfer", "Pick Transfer"], ["shiprocket", "Shiprocket"],
     ["shipping_status", "Shipping Status"], ["returns", "Customer Returns"], ["refunds", "Payment Refunds"],
-    ["money_tracking", "Money Tracking"], ["invoices", "Invoices"], ["reports", "Reports"],
+    ["money_tracking", "Money Tracking / Warehouse Transactions"], ["invoices", "Invoices"], ["reports", "Reports"],
     ["inbound_customers", "Inbound Customers"], ["cash_tracker", "Cash Tracker"], ["cash_settlements", "Cash Settlements"],
     ["coupons", "Coupons"], ["users", "Users"], ["ops_config", "Ops Config"], ["settings", "Settings"],
   ],
