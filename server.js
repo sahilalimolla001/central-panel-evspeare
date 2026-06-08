@@ -179,6 +179,7 @@ async function handlePushNotificationsApi(request, response, admin) {
   }
 
   const pushAdminToken = String(process.env.PUSH_ADMIN_TOKEN || "").trim();
+  let customerAppPushError = "";
   if (pushAdminToken && notification.status === "queued") {
     try {
       const appResponse = await fetch(`${config.customerAppApi}/api/mobile/push/send`, {
@@ -200,15 +201,21 @@ async function handlePushNotificationsApi(request, response, admin) {
         });
         return;
       }
-    } catch {
+      customerAppPushError = appData?.result?.message || appData?.message || `Customer app returned ${appResponse.status}`;
+    } catch (error) {
+      customerAppPushError = error.message || "Customer app push endpoint is not reachable";
       // Keep local queue if the customer app push endpoint is not reachable.
     }
   }
 
+  const queuedMessage = customerAppPushError
+    ? `Push notification queued locally. Mobile delivery failed: ${customerAppPushError}`
+    : "Push notification queued locally.";
   sendJson(response, 200, {
     ok: true,
-    message: notification.status === "draft" ? "Push notification draft saved." : "Push notification queued locally.",
+    message: notification.status === "draft" ? "Push notification draft saved." : queuedMessage,
     notification,
+    delivery: customerAppPushError ? { ok: false, message: customerAppPushError } : undefined,
   });
 }
 
