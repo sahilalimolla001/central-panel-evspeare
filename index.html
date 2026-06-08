@@ -44,6 +44,7 @@
           <button type="button" data-page="shiprocket">Shiprocket</button>
           <button type="button" data-page="catalog">Catalog</button>
           <button type="button" data-page="tracking">Order Tracking</button>
+          <button type="button" data-page="push-notifications">Push Notifications</button>
           <button type="button" data-page="content">Website/App Edit</button>
           <button type="button" data-page="ops-config">Warehouse Ops Config</button>
           <button type="button" data-page="automation">Automation</button>
@@ -197,6 +198,46 @@
               <button type="submit">Track order</button>
             </form>
             <div class="tracking-result" id="tracking-result"></div>
+          </div>
+        </section>
+
+        <section class="page" data-page-panel="push-notifications">
+          <div class="grid">
+            <section class="panel span-2">
+              <div class="panel-head">
+                <div>
+                  <span>Customer app</span>
+                  <h2>Create push notification</h2>
+                </div>
+                <button type="submit" form="push-notification-form">Send</button>
+              </div>
+              <form class="edit-form" id="push-notification-form">
+                <div class="option-row">
+                  <label>Title <input name="title" maxlength="80" value="Order update from EV Speare" required /></label>
+                  <label>Audience <select name="audience"><option value="all">All customers</option><option value="active">Active customers</option><option value="pending_orders">Pending orders</option><option value="pincode">Pincode wise</option></select></label>
+                  <label>Pincode <input name="pincode" maxlength="6" placeholder="Optional" /></label>
+                  <label>Open screen <select name="target"><option value="orders">Orders</option><option value="home">Home</option><option value="cart">Cart</option><option value="support">Support</option></select></label>
+                </div>
+                <label>Message <textarea name="message" rows="4" maxlength="220" required>Your order tracking is live. Open EV Speare to check the latest update.</textarea></label>
+                <div class="option-row">
+                  <label>Schedule <select name="schedule"><option value="now">Send now</option><option value="draft">Save draft</option></select></label>
+                  <label>Priority <select name="priority"><option value="normal">Normal</option><option value="high">High</option></select></label>
+                </div>
+              </form>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span>Preview</span>
+                  <h2>Mobile notification</h2>
+                </div>
+              </div>
+              <div class="push-preview" id="push-preview">
+                <strong>Order update from EV Speare</strong>
+                <span>Your order tracking is live. Open EV Speare to check the latest update.</span>
+              </div>
+              <div class="mini-list" id="push-log"></div>
+            </section>
           </div>
         </section>
 

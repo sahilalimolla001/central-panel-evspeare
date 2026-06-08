@@ -593,6 +593,33 @@ select {
   align-items: center;
 }
 
+.push-preview {
+  min-height: 96px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  background: linear-gradient(180deg, #ffffff, #f3f7fb);
+  box-shadow: var(--shadow);
+}
+
+.push-preview strong,
+.push-preview span {
+  overflow-wrap: anywhere;
+}
+
+.push-preview strong {
+  font-size: 15px;
+}
+
+.push-preview span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .chart-card {
   display: grid;
   gap: 8px;

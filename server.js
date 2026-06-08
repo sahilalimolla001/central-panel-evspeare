@@ -112,12 +112,76 @@ async function handleAdminApi(request, response, requestUrl) {
     return;
   }
 
+  if (requestUrl.pathname === "/api/admin/push-notifications") {
+    if (!adminCanOpen(admin, "push-notifications")) {
+      sendJson(response, 403, { ok: false, message: "You are not allowed to access this page." });
+      return;
+    }
+    await handlePushNotificationsApi(request, response, admin);
+    return;
+  }
+
   if (requestUrl.pathname === "/api/admin/proxy") {
     await proxyBackend(request, response, requestUrl);
     return;
   }
 
   sendJson(response, 404, { ok: false, message: "Admin API route not found" });
+}
+
+async function handlePushNotificationsApi(request, response, admin) {
+  if (request.method !== "POST") {
+    sendJson(response, 405, { ok: false, message: "Method not allowed" });
+    return;
+  }
+  const body = await readJson(request);
+  const title = String(body.title || "").trim();
+  const message = String(body.message || "").trim();
+  if (!title || !message) {
+    sendJson(response, 400, { ok: false, message: "Title and message are required" });
+    return;
+  }
+  const notification = {
+    id: crypto.randomUUID(),
+    title,
+    message,
+    audience: String(body.audience || "all").trim(),
+    pincode: String(body.pincode || "").replace(/\D/g, "").slice(0, 6),
+    target: String(body.target || "orders").trim(),
+    schedule: String(body.schedule || "now").trim(),
+    priority: String(body.priority || "normal").trim(),
+    status: body.schedule === "draft" ? "draft" : "queued",
+    createdBy: admin.userId || adminId,
+    createdAt: new Date().toISOString(),
+  };
+  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+  fs.appendFileSync(path.join(dataDir, "push-notifications.jsonl"), `${JSON.stringify(notification)}\n`);
+
+  if (backendToken && notification.status === "queued") {
+    try {
+      const upstream = await fetch(`${config.backendApi}/central-panel/push-notifications`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${backendToken}`,
+        },
+        body: JSON.stringify(notification),
+      });
+      if (upstream.ok) {
+        sendJson(response, 200, { ok: true, message: "Push notification sent to backend.", notification });
+        return;
+      }
+    } catch {
+      // Local queue remains available when backend push delivery is not connected yet.
+    }
+  }
+
+  sendJson(response, 200, {
+    ok: true,
+    message: notification.status === "draft" ? "Push notification draft saved." : "Push notification queued locally.",
+    notification,
+  });
 }
 
 async function handleUsersApi(request, response) {

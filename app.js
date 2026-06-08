@@ -46,7 +46,7 @@ const rolePermissionCatalogs = {
     ["panel_dashboard", "Dashboard"], ["panel_orders", "Orders"], ["panel_customers", "Customers"],
     ["panel_pickers", "Pickers"], ["panel_returns", "Returns"], ["panel_inventory", "Inventory"],
     ["panel_user_create", "User Creating"], ["panel_shiprocket", "Shiprocket"], ["panel_catalog", "Catalog"],
-    ["panel_tracking", "Order Tracking"], ["panel_content", "Website / App Edit"],
+    ["panel_tracking", "Order Tracking"], ["panel_push_notifications", "Push Notifications"], ["panel_content", "Website / App Edit"],
     ["panel_ops_config", "Warehouse Ops Config"], ["panel_automation", "Automation"],
     ["panel_inbound_customers", "Inbound Customers"],
     ["panel_cash_tracker", "Cash Tracker"],
@@ -109,6 +109,8 @@ function bindActions() {
   $("#global-search").addEventListener("input", renderAll);
   $("#warehouse-filter").addEventListener("change", renderAll);
   $("#tracking-form").addEventListener("submit", trackOrder);
+  $("#push-notification-form")?.addEventListener("submit", createPushNotification);
+  $("#push-notification-form")?.addEventListener("input", renderPushPreview);
   $("#create-user").addEventListener("click", createAccessUser);
   $("#refresh-created-users").addEventListener("click", loadCreatedUsers);
   $("#close-drawer").addEventListener("click", closeDrawer);
@@ -917,6 +919,42 @@ async function saveEditor(section) {
   }
   renderEditLog();
   renderOpsConfig();
+}
+
+async function createPushNotification(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = Object.fromEntries(new FormData(form).entries());
+  if (!data.title || !data.message) {
+    toast("Notification title aur message required hai.");
+    return;
+  }
+  try {
+    const response = await adminPost("/api/admin/push-notifications", data);
+    toast(response.message || "Push notification queued.");
+    renderPushLog(response.notification || data);
+  } catch (error) {
+    toast(`Push save nahi hua: ${error.message}`);
+  }
+}
+
+function renderPushPreview() {
+  const form = $("#push-notification-form");
+  const preview = $("#push-preview");
+  if (!form || !preview) return;
+  const data = Object.fromEntries(new FormData(form).entries());
+  preview.innerHTML = `<strong>${escapeHtml(data.title || "Notification title")}</strong><span>${escapeHtml(data.message || "Notification message")}</span>`;
+}
+
+function renderPushLog(notification) {
+  const log = $("#push-log");
+  if (!log) return;
+  const row = miniCard(
+    notification.title || "Push notification",
+    notification.schedule === "draft" ? "Draft saved" : "Queued",
+    `${notification.audience || "all"} · ${dateKey(notification.createdAt || new Date().toISOString())}`
+  );
+  log.innerHTML = row + log.innerHTML;
 }
 
 async function createAccessUser() {
