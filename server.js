@@ -12,6 +12,7 @@ const staffSessions = new Map();
 
 const config = {
   websiteUrl: process.env.WEBSITE_URL || "https://www.evspeare.shop",
+  customerAppApi: (process.env.CUSTOMER_APP_API_URL || process.env.WEBSITE_URL || "https://www.evspeare.shop").replace(/\/+$/, ""),
   pickerUrl: process.env.PICKER_URL || "https://evsphere-warehouse-mobile-production.up.railway.app",
   inboundAppUrl: process.env.INBOUND_APP_URL || "",
   backendApi: (process.env.BACKEND_API_URL || "https://evsphere-warehouse-backend-production.up.railway.app/api").replace(/\/+$/, ""),
@@ -174,6 +175,33 @@ async function handlePushNotificationsApi(request, response, admin) {
       }
     } catch {
       // Local queue remains available when backend push delivery is not connected yet.
+    }
+  }
+
+  const pushAdminToken = String(process.env.PUSH_ADMIN_TOKEN || "").trim();
+  if (pushAdminToken && notification.status === "queued") {
+    try {
+      const appResponse = await fetch(`${config.customerAppApi}/api/mobile/push/send`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${pushAdminToken}`,
+        },
+        body: JSON.stringify(notification),
+      });
+      const appData = await appResponse.json().catch(() => ({}));
+      if (appResponse.ok && appData.ok !== false) {
+        sendJson(response, 200, {
+          ok: true,
+          message: `Push sent to ${appData.targets || 0} registered device(s).`,
+          notification,
+          delivery: appData,
+        });
+        return;
+      }
+    } catch {
+      // Keep local queue if the customer app push endpoint is not reachable.
     }
   }
 
