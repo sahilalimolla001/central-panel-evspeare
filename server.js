@@ -158,28 +158,9 @@ async function handlePushNotificationsApi(request, response, admin) {
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
   fs.appendFileSync(path.join(dataDir, "push-notifications.jsonl"), `${JSON.stringify(notification)}\n`);
 
-  if (backendToken && notification.status === "queued") {
-    try {
-      const upstream = await fetch(`${config.backendApi}/central-panel/push-notifications`, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${backendToken}`,
-        },
-        body: JSON.stringify(notification),
-      });
-      if (upstream.ok) {
-        sendJson(response, 200, { ok: true, message: "Push notification sent to backend.", notification });
-        return;
-      }
-    } catch {
-      // Local queue remains available when backend push delivery is not connected yet.
-    }
-  }
-
   const pushAdminToken = String(process.env.PUSH_ADMIN_TOKEN || "").trim();
   let customerAppPushError = "";
+  let customerAppDelivery = null;
   if (pushAdminToken && notification.status === "queued") {
     try {
       const appResponse = await fetch(`${config.customerAppApi}/api/mobile/push/send`, {
@@ -193,19 +174,46 @@ async function handlePushNotificationsApi(request, response, admin) {
       });
       const appData = await appResponse.json().catch(() => ({}));
       if (appResponse.ok && appData.ok !== false) {
-        sendJson(response, 200, {
-          ok: true,
-          message: `Push sent to ${appData.targets || 0} registered device(s).`,
-          notification,
-          delivery: appData,
-        });
-        return;
+        customerAppDelivery = appData;
+      } else {
+        customerAppPushError = appData?.result?.message || appData?.message || `Customer app returned ${appResponse.status}`;
       }
-      customerAppPushError = appData?.result?.message || appData?.message || `Customer app returned ${appResponse.status}`;
     } catch (error) {
       customerAppPushError = error.message || "Customer app push endpoint is not reachable";
-      // Keep local queue if the customer app push endpoint is not reachable.
     }
+  } else if (notification.status === "queued") {
+    customerAppPushError = "PUSH_ADMIN_TOKEN is not configured in central panel";
+  }
+
+  let backendSynced = false;
+  let backendSyncError = "";
+  if (backendToken && notification.status === "queued") {
+    try {
+      const upstream = await fetch(`${config.backendApi}/central-panel/push-notifications`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${backendToken}`,
+        },
+        body: JSON.stringify(notification),
+      });
+      backendSynced = upstream.ok;
+    } catch (error) {
+      backendSyncError = error.message || "Backend push sync failed";
+    }
+  }
+
+  if (customerAppDelivery) {
+    sendJson(response, 200, {
+      ok: true,
+      message: `Push sent to ${customerAppDelivery.targets || 0} registered device(s).`,
+      notification,
+      delivery: customerAppDelivery,
+      backendSynced,
+      backendSyncError: backendSynced ? undefined : backendSyncError || undefined,
+    });
+    return;
   }
 
   const queuedMessage = customerAppPushError
@@ -216,6 +224,8 @@ async function handlePushNotificationsApi(request, response, admin) {
     message: notification.status === "draft" ? "Push notification draft saved." : queuedMessage,
     notification,
     delivery: customerAppPushError ? { ok: false, message: customerAppPushError } : undefined,
+    backendSynced,
+    backendSyncError: backendSynced ? undefined : backendSyncError || undefined,
   });
 }
 
