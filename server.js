@@ -176,7 +176,8 @@ async function handlePushNotificationsApi(request, response, admin) {
       if (appResponse.ok && appData.ok !== false) {
         customerAppDelivery = appData;
       } else {
-        customerAppPushError = appData?.result?.message || appData?.message || `Customer app returned ${appResponse.status}`;
+        const firebaseError = appData?.result?.response?.[0]?.error?.message || appData?.result?.response?.[0]?.error?.status || "";
+        customerAppPushError = appData?.result?.message || firebaseError || appData?.message || `Customer app returned ${appResponse.status}`;
       }
     } catch (error) {
       customerAppPushError = error.message || "Customer app push endpoint is not reachable";
