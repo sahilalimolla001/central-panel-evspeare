@@ -413,7 +413,8 @@ async function proxyBackend(request, response, requestUrl) {
   const target = /^https?:\/\//i.test(rawPath)
     ? rawPath
     : `${config.backendApi}${rawPath.startsWith("/") ? rawPath : `/${rawPath}`}`;
-  const headers = { Accept: "application/json" };
+  const wantsImage = /\/image(?:$|[?#/])|[?&](?:src|image)=/i.test(rawPath);
+  const headers = { Accept: wantsImage ? "image/*,*/*;q=0.8" : "application/json" };
   if (!["GET", "HEAD"].includes(request.method)) headers["Content-Type"] = "application/json";
   if (backendToken) headers.Authorization = `Bearer ${backendToken}`;
   if (warehouseId) headers["X-Warehouse-Id"] = warehouseId;
@@ -425,12 +426,12 @@ async function proxyBackend(request, response, requestUrl) {
     body,
     redirect: "follow",
   });
-  const text = await upstream.text();
+  const data = Buffer.from(await upstream.arrayBuffer());
   response.writeHead(upstream.status, {
     "Content-Type": upstream.headers.get("content-type") || "application/json; charset=utf-8",
-    "Cache-Control": "no-store",
+    "Cache-Control": wantsImage ? "public, max-age=300" : "no-store",
   });
-  response.end(text);
+  response.end(data);
 }
 
 function serveStatic(requestUrl, response) {

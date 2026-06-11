@@ -805,7 +805,9 @@ function safeCell(value) {
 
 function imageCell(item) {
   const src = item.image || "";
-  const image = src ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(item.name || item.sku || "Product")}" loading="lazy" />` : `<span>${escapeHtml((item.name || item.sku || "P").slice(0, 1))}</span>`;
+  const initial = escapeHtml((item.name || item.sku || "P").slice(0, 1));
+  const fallback = `<span>${initial}</span>`;
+  const image = src ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(item.name || item.sku || "Product")}" loading="lazy" onerror="this.remove();this.parentElement.textContent='${initial}';" />` : fallback;
   return `<div class="product-cell"><div class="product-thumb">${image}</div><strong>${escapeHtml(item.name || "Product")}</strong></div>`;
 }
 
@@ -1490,7 +1492,7 @@ function cashSettlementSummaryForFilter() {
 
 function firstImage(item) {
   if (!item || typeof item !== "object") return "";
-  const direct = text(item, ["image", "image_url", "imageUrl", "featured_image", "featuredImage"]);
+  const direct = text(item, ["image_display_url", "imageDisplayUrl", "image", "image_url", "imageUrl", "featured_image", "featuredImage"]);
   if (direct) return resolveMediaUrl(direct);
   const images = Array.isArray(item.images) ? item.images : [];
   if (!images.length) return "";
@@ -1502,6 +1504,7 @@ function resolveMediaUrl(value) {
   const raw = String(value || "").trim();
   if (!raw || raw.startsWith("gs://")) return "";
   if (/^(https?:|data:|blob:)/i.test(raw)) return raw;
+  if (raw.startsWith("/api/")) return proxyUrl(raw);
   try {
     return new URL(raw, store.config.websiteUrl || window.location.origin).href;
   } catch {

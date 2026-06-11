@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "723482884028",
+    "project_id": "app-evspeare",
+    "storage_bucket": "app-evspeare.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:723482884028:android:44ce8b2b64dd69f2f25db9",
+        "android_client_info": {
+          "package_name": "shop.evspeare.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "723482884028-tsdv4ciudsrng0vc8ljkua70it1fa0bk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBLISZBq_7vcql-u_DbP_nWi3MVV54fZe8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "723482884028-tsdv4ciudsrng0vc8ljkua70it1fa0bk.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
